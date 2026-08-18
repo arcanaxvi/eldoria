@@ -2121,8 +2121,30 @@ async function allocateBonusStats() {
 
 function classThemeKey(className) {
   const map = {
-    Warrior:'warrior', Mage:'mage', Rogue:'rogue', Paladin:'paladin',
-    Archer:'archer', Necromancer:'necromancer'
+    // Warrior line
+    Warrior:'warrior', Berserker:'warrior', 'Guardian Baja':'warrior',
+    'Blood Tyrant':'warrior', 'Colossus Titan':'warrior',
+    'Abyss Sovereign':'warrior', 'Immortal Earthbound':'warrior',
+    // Mage line
+    Mage:'mage', Archmage:'mage', 'Frost Warden':'mage',
+    'Celestial Invoker':'mage', 'Glacier Sovereign':'mage',
+    'Aether Archon':'mage', 'Frost Primordial':'mage',
+    // Rogue line
+    Rogue:'rogue', 'Shadow Assassin':'rogue', 'Dual Duelist':'rogue',
+    'Void Phantom':'rogue', 'Blade Sovereign':'rogue',
+    'Void God Assassin':'rogue', 'Grand Sword Saint':'rogue',
+    // Paladin line
+    Paladin:'paladin', 'Holy Templar':'paladin', 'Aegis Master':'paladin',
+    'High Seraph Guardian':'paladin', 'Bastion of Dawn':'paladin',
+    'True Avatar of Light':'paladin', 'Aegis of the Creator':'paladin',
+    // Archer line
+    Archer:'archer', 'God-Eye Sniper':'archer', 'Venom Ranger':'archer',
+    'Cosmic Ranger':'archer', 'Abyssal Stalker':'archer',
+    'Starlight Godbow':'archer', 'Leviathan Serpent':'archer',
+    // Necromancer line
+    Necromancer:'necromancer', 'Soul Lich':'necromancer', 'Plague Lord':'necromancer',
+    'Death Lord Thanatos':'necromancer', 'Harbinger of Ruin':'necromancer',
+    'Primordial Reaper':'necromancer', 'Apocalypse Herald':'necromancer'
   };
   return map[className] || 'warrior';
 }
@@ -2363,6 +2385,7 @@ async function mainGame() {
     if (d) {
       player = loadGameFromData(d);
       if (player) {
+        applyClassTheme(player.class_name);
         render(box(null, `<p class="storytext">🎉 Game berhasil dimuat! Selamat datang kembali, ${esc(player.name)}!</p>`));
         await new Promise(r => setTimeout(r, 500));
       }
