@@ -123,7 +123,7 @@
     .select-card{min-height:0;padding:12px}
   }
 
-  /* Dynamic class themes */
+  Dynamic class themes
   body.class-theme-warrior{--primary:#9b3f2f;--primary-light:#c05a3d;--gold:#e1b75d;}
   body.class-theme-mage{--primary:#5b67c9;--primary-light:#8490ed;--gold:#c7d2ff;--mp:#5f91d0;}
   body.class-theme-rogue{--primary:#6d3e91;--primary-light:#a15bc7;--gold:#d5a7e8;--enemyhp:#713b82;}
@@ -2660,16 +2660,12 @@ bootLoop();
       '.hp-fill, .health-fill, .bar-hp, .health-bar > .fill, .stat-bar.hp .fill'
     ).forEach(el => {
       el.style.width = hpPct + '%';
-      el.style.background = '#8B0000';
-      el.style.backgroundImage = 'linear-gradient(90deg,#8B0000,#FF3333)';
     });
 
     document.querySelectorAll(
       '.mp-fill, .mana-fill, .bar-mp, .mana-bar > .fill, .stat-bar.mp .fill'
     ).forEach(el => {
       el.style.width = mpPct + '%';
-      el.style.background = '#0000FF';
-      el.style.backgroundImage = 'linear-gradient(90deg,#0000FF,#4D7CFF)';
     });
   };
 })();
