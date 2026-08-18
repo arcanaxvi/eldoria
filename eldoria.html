@@ -1,0 +1,2679 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Eldoria RPG — 50 Floors of Abyss</title>
+<style>
+  :root{
+    --bg-0:#0b0b12; --bg-1:#14141f; --bg-2:#1c1c2b; --bg-3:#242438;
+    --gold:#e0b64c; --gold-dim:#8a6f2f;
+    --red:#c94b4b; --hp:#c94b4b; --mp:#3f8fd6; --enemyhp:#8a3fd6;
+    --text:#e8e6f0; --text-dim:#a8a4bd;
+    --border:#33334a; --primary:#7a4de0;
+    --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg-0);color:var(--text);font-family:var(--font);}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(ellipse at top, #1a1530 0%, #0b0b12 55%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.01) 0 2px, transparent 2px 40px);
+  }
+  #app{max-width:680px;margin:0 auto;padding:14px 12px 60px;min-height:100vh;display:flex;flex-direction:column;}
+  header.game-header{
+    text-align:center;padding:14px 8px 10px;
+    border-bottom:1px solid var(--border);margin-bottom:10px;
+  }
+  header.game-header h1{
+    margin:0;font-size:1.35rem;letter-spacing:1px;
+    background:linear-gradient(90deg,var(--gold),#fff,var(--gold));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 18px rgba(224,182,76,0.25);
+  }
+  header.game-header p{margin:4px 0 0;color:var(--text-dim);font-size:0.78rem;}
+
+  #hud{
+    background:linear-gradient(180deg,var(--bg-2),var(--bg-1));
+    border:1px solid var(--border);border-radius:12px;
+    padding:10px 12px;margin-bottom:12px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.35);
+  }
+  #hud.hidden{display:none;}
+  .hud-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
+  .hud-name{font-weight:700;color:var(--gold);font-size:1rem;}
+  .hud-tag{color:var(--text-dim);font-size:0.78rem;}
+  .hud-gold{color:var(--gold);font-size:0.85rem;font-weight:600;}
+  .bar{position:relative;height:18px;background:var(--bg-3);border-radius:9px;overflow:hidden;margin:4px 0;border:1px solid var(--border);}
+  .bar-fill{height:100%;transition:width .3s ease;}
+  .bar-fill.hp{background:linear-gradient(90deg,#7a1f1f,var(--hp));}
+  .bar-fill.mp{background:linear-gradient(90deg,#1f4f7a,var(--mp));}
+  .bar-fill.enemy-hp{background:linear-gradient(90deg,#4a1f7a,var(--enemyhp));}
+  .bar-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:0.72rem;text-shadow:0 1px 2px #000;white-space:nowrap;}
+  .bar.enemy{margin-top:8px;}
+
+  #screen{flex:1;}
+  .panel{
+    background:linear-gradient(180deg,var(--bg-2),var(--bg-1));
+    border:1px solid var(--border);border-radius:14px;
+    padding:16px 16px 18px;margin-bottom:14px;
+    box-shadow:0 6px 22px rgba(0,0,0,0.4);
+    animation:fadeIn .25s ease;
+  }
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+  .panel h2{
+    margin:0 0 10px;font-size:1.05rem;color:var(--gold);
+    text-align:center;letter-spacing:0.5px;
+    text-shadow:0 0 10px rgba(224,182,76,0.2);
+  }
+  .panel p{margin:6px 0;line-height:1.5;font-size:0.92rem;}
+  .sep{border:none;border-top:1px dashed var(--border);margin:10px 0;}
+  .statline{color:var(--gold-dim);font-size:0.82rem !important;}
+  .logmsg{background:rgba(122,77,224,0.08);border-left:3px solid var(--primary);padding:8px 10px;border-radius:6px;font-size:0.88rem !important;}
+  .storytext{white-space:pre-line;line-height:1.6;color:var(--text);}
+  .poison{color:#8fd67a;font-size:0.82rem !important;}
+  .zone-name{color:var(--gold);font-weight:600;font-size:1rem !important;}
+  .boss-warn{color:var(--red);font-weight:700;text-align:center;font-size:0.95rem !important;}
+  .boss-name{color:var(--gold);font-weight:700;text-align:center;font-size:1.15rem !important;text-transform:uppercase;letter-spacing:1px;}
+  .win-title{color:#8fd67a;font-weight:700;text-align:center;font-size:1rem;}
+  .ending-title{color:var(--gold);font-weight:700;text-align:center;font-size:1.05rem;margin-top:10px;}
+  .battle-title{color:var(--gold);font-weight:600;text-align:center;font-size:0.95rem;}
+
+  /* Direct selectable cards */
+  .selection-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
+    margin:10px 0 4px;
+  }
+  .select-card{
+    position:relative;
+    width:100%;
+    text-align:left;
+    background:linear-gradient(180deg,rgba(61,43,27,.96),rgba(35,23,14,.98));
+    color:var(--text);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:13px;
+    cursor:pointer;
+    font:inherit;
+    transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease, background .16s ease;
+    min-height:118px;
+  }
+  .select-card:hover{transform:translateY(-2px);border-color:var(--primary-light);box-shadow:0 8px 18px rgba(0,0,0,.32)}
+  .select-card:active{transform:translateY(0)}
+  .select-card::after{
+    content:'PILIH';
+    position:absolute;right:10px;top:10px;
+    font-size:.62rem;letter-spacing:1px;color:var(--gold-dim);opacity:.7;
+  }
+  .select-card .card-title{padding-right:45px;font-size:.98rem}
+  .select-card .card-desc{line-height:1.45}
+  .select-card .card-stat{margin-top:7px}
+  .select-card.race-selected,.select-card.class-selected{
+    border-color:var(--gold);
+    box-shadow:0 0 0 1px rgba(215,173,85,.22), 0 10px 24px rgba(0,0,0,.35);
+  }
+  .class-theme-preview{
+    border-left:3px solid var(--class-accent,var(--gold));
+  }
+  @media (max-width:640px){
+    .selection-grid{grid-template-columns:1fr;gap:8px}
+    .select-card{min-height:0;padding:12px}
+  }
+
+  /* Dynamic class themes */
+  body.class-theme-warrior{--primary:#9b3f2f;--primary-light:#c05a3d;--gold:#e1b75d;}
+  body.class-theme-mage{--primary:#5b67c9;--primary-light:#8490ed;--gold:#c7d2ff;--mp:#5f91d0;}
+  body.class-theme-rogue{--primary:#6d3e91;--primary-light:#a15bc7;--gold:#d5a7e8;--enemyhp:#713b82;}
+  body.class-theme-paladin{--primary:#a77a28;--primary-light:#d4ab51;--gold:#ffe2a0;--mp:#668bc4;}
+  body.class-theme-archer{--primary:#4c7b43;--primary-light:#78a86b;--gold:#d6e6a0;}
+  body.class-theme-necromancer{--primary:#4f3b72;--primary-light:#7957a9;--gold:#cbb8ee;--enemyhp:#673b76;}
+
+  body.class-theme-warrior .panel h2, body.class-theme-warrior .battle-title,
+  body.class-theme-mage .panel h2, body.class-theme-mage .battle-title,
+  body.class-theme-rogue .panel h2, body.class-theme-rogue .battle-title,
+  body.class-theme-paladin .panel h2, body.class-theme-paladin .battle-title,
+  body.class-theme-archer .panel h2, body.class-theme-archer .battle-title,
+  body.class-theme-necromancer .panel h2, body.class-theme-necromancer .battle-title{color:var(--gold)}
+
+  .card{
+    background:var(--bg-3);border:1px solid var(--border);border-radius:10px;
+    padding:10px 12px;margin:8px 0;
+  }
+  .card-title{font-weight:600;color:var(--gold);font-size:0.9rem;}
+  .card-desc{color:var(--text-dim);font-size:0.8rem;margin-top:3px;}
+  .card-stat{color:#8fbdd6;font-size:0.78rem;margin-top:2px;}
+
+  .btnrow{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px;}
+  .btn{
+    flex:1 1 auto;min-width:130px;
+    background:linear-gradient(180deg,#2b2b40,#1c1c2b);
+    color:var(--text);border:1px solid var(--border);
+    border-radius:10px;padding:11px 14px;font-size:0.86rem;
+    cursor:pointer;transition:all .15s ease;font-family:var(--font);
+  }
+  .btn:hover{background:linear-gradient(180deg,#39395a,#242438);border-color:var(--primary);transform:translateY(-1px);}
+  .btn:active{transform:translateY(0);}
+  .btn:disabled{opacity:0.35;cursor:not-allowed;}
+  .btn.primary{background:linear-gradient(180deg,#8a5cf0,#5b32b8);border-color:#8a5cf0;font-weight:600;}
+  .btn.primary:hover{background:linear-gradient(180deg,#9a6cff,#6b3fd0);}
+  .btn.danger{background:linear-gradient(180deg,#5a2a2a,#3a1a1a);border-color:#7a3a3a;}
+  .btn.danger:hover{background:linear-gradient(180deg,#7a3a3a,#4a2222);}
+
+  .inputrow{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap;align-items:center;}
+  .textinput{
+    flex:1 1 160px;background:var(--bg-3);border:1px solid var(--border);
+    border-radius:10px;padding:10px 12px;color:var(--text);font-size:0.9rem;font-family:var(--font);
+  }
+  .textinput:focus{outline:none;border-color:var(--primary);}
+  .numinput{max-width:110px;flex:0 0 110px;}
+  .errtext{color:var(--red);font-size:0.78rem;width:100%;}
+
+  .statrow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:6px 0;font-size:0.85rem;}
+  .statrow label{flex:1;}
+  .statinput{width:70px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;padding:6px 8px;color:var(--text);font-family:var(--font);}
+  #statremain{text-align:center;font-weight:600;margin-top:8px !important;}
+  #statremain.overspend{color:var(--red);}
+
+  footer{text-align:center;color:var(--text-dim);font-size:0.7rem;padding:14px 0 0;opacity:0.6;}
+
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+
+  /* =========================================================
+     ELDORIA MEDIEVAL UI — VISUAL OVERHAUL + RESPONSIVE
+     Tidak mengubah logic/gameplay JavaScript.
+     ========================================================= */
+  :root{
+    --bg-0:#100c09;
+    --bg-1:#17100c;
+    --bg-2:#24170f;
+    --bg-3:#302014;
+    --gold:#d7ad55;
+    --gold-bright:#f2d58a;
+    --gold-dim:#8f6d35;
+    --red:#a83b32;
+    --hp:#b94a3d;
+    --mp:#4c78a8;
+    --enemyhp:#783b74;
+    --text:#f1e5cc;
+    --text-dim:#b9a98d;
+    --border:#695032;
+    --border-dark:#3d2a1b;
+    --primary:#8b5a2b;
+    --primary-light:#b67b3c;
+    --font: Georgia, "Times New Roman", serif;
+  }
+
+  html{
+    background:#0b0806;
+    scroll-behavior:smooth;
+  }
+
+  body{
+    min-height:100vh;
+    color:var(--text);
+    font-family:var(--font);
+    background:
+      radial-gradient(circle at 50% -10%, rgba(214,173,85,.13), transparent 38%),
+      radial-gradient(circle at 10% 90%, rgba(139,90,43,.10), transparent 32%),
+      linear-gradient(rgba(17,11,7,.94),rgba(17,11,7,.97)),
+      repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 1px,transparent 1px 5px);
+    letter-spacing:.01em;
+  }
+
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:999;
+    box-shadow:inset 0 0 110px 35px rgba(0,0,0,.72);
+  }
+
+  #app{
+    width:min(100% - 24px, 920px);
+    max-width:920px;
+    margin:0 auto;
+    padding:18px 0 54px;
+    min-height:100vh;
+  }
+
+  header.game-header{
+    position:relative;
+    text-align:center;
+    padding:20px 18px 18px;
+    margin-bottom:14px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:
+      linear-gradient(180deg,rgba(54,36,22,.95),rgba(25,16,10,.96));
+    box-shadow:
+      0 10px 30px rgba(0,0,0,.5),
+      inset 0 1px rgba(255,255,255,.06);
+  }
+
+  header.game-header::before,
+  header.game-header::after{
+    content:"✦";
+    position:absolute;
+    top:50%;
+    transform:translateY(-50%);
+    color:var(--gold);
+    opacity:.75;
+    font-size:1.15rem;
+  }
+  header.game-header::before{left:18px}
+  header.game-header::after{right:18px}
+
+  header.game-header h1{
+    margin:0;
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:clamp(1.45rem,4vw,2rem);
+    letter-spacing:3px;
+    text-transform:uppercase;
+    background:linear-gradient(180deg,#fff1b8 0%,#d7ad55 48%,#8f6427 100%);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    text-shadow:0 2px 18px rgba(215,173,85,.18);
+  }
+
+  header.game-header p{
+    margin:7px 0 0;
+    color:var(--text-dim);
+    font-size:.78rem;
+    letter-spacing:1.3px;
+  }
+
+  #hud{
+    position:sticky;
+    top:10px;
+    z-index:20;
+    background:linear-gradient(180deg,rgba(50,32,19,.98),rgba(29,18,11,.98));
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:12px 14px;
+    margin-bottom:14px;
+    box-shadow:0 10px 26px rgba(0,0,0,.48);
+    backdrop-filter:blur(8px);
+  }
+
+  .hud-name,.panel h2,.card-title{
+    color:var(--gold-bright);
+    text-shadow:0 1px 0 #000;
+  }
+
+  .hud-tag,.card-desc,.textinput::placeholder{color:var(--text-dim)}
+
+  .bar{
+    height:18px;
+    background:#120d09;
+    border:1px solid #4b3825;
+    border-radius:3px;
+    box-shadow:inset 0 2px 5px rgba(0,0,0,.6);
+  }
+
+  .bar-fill.hp{background:linear-gradient(90deg,#6f211c,#c34d40)}
+  .bar-fill.mp{background:linear-gradient(90deg,#29486a,#5d8fbe)}
+  .bar-fill.enemy-hp{background:linear-gradient(90deg,#45223f,#8b477e)}
+
+  #screen{flex:1}
+
+  .panel{
+    position:relative;
+    background:
+      linear-gradient(180deg,rgba(49,32,20,.97),rgba(30,19,12,.98));
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:20px;
+    margin-bottom:14px;
+    box-shadow:
+      0 10px 28px rgba(0,0,0,.42),
+      inset 0 1px rgba(255,255,255,.035);
+  }
+
+  .panel::after{
+    content:"";
+    position:absolute;
+    inset:5px;
+    pointer-events:none;
+    border:1px solid rgba(215,173,85,.08);
+    border-radius:5px;
+  }
+
+  .panel h2{
+    font-size:1.1rem;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    padding-bottom:10px;
+    margin-bottom:13px;
+    border-bottom:1px solid rgba(215,173,85,.25);
+  }
+
+  .panel p{font-size:.94rem;line-height:1.65}
+  .sep{border-top:1px solid rgba(215,173,85,.18)}
+  .storytext{line-height:1.75}
+  .zone-name,.boss-name,.battle-title,.ending-title{color:var(--gold-bright)}
+  .boss-warn{color:#df6a5d}
+
+  .card{
+    background:linear-gradient(180deg,#392619,#28190f);
+    border:1px solid #63472c;
+    border-radius:6px;
+    padding:13px 14px;
+    margin:9px 0;
+    box-shadow:inset 0 1px rgba(255,255,255,.035);
+  }
+
+  .card:hover{
+    border-color:#8b693d;
+    background:linear-gradient(180deg,#402b1a,#2d1c10);
+  }
+
+  .card-stat{color:#b7c6c8}
+
+  .btnrow{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:9px;
+    margin:13px 0 5px;
+  }
+
+  .btn{
+    width:100%;
+    min-width:0;
+    min-height:44px;
+    background:linear-gradient(180deg,#4a3320,#2a1a10);
+    color:#f1e5cc;
+    border:1px solid #705232;
+    border-radius:5px;
+    padding:11px 14px;
+    font-size:.88rem;
+    font-weight:600;
+    cursor:pointer;
+    transition:transform .15s ease,background .15s ease,border-color .15s ease,box-shadow .15s ease;
+    font-family:var(--font);
+    box-shadow:0 3px 8px rgba(0,0,0,.25),inset 0 1px rgba(255,255,255,.05);
+  }
+
+  .btn:hover{
+    background:linear-gradient(180deg,#604329,#382311);
+    border-color:var(--gold);
+    transform:translateY(-1px);
+    box-shadow:0 5px 12px rgba(0,0,0,.34),0 0 12px rgba(215,173,85,.08);
+  }
+
+  .btn:focus-visible{
+    outline:2px solid var(--gold-bright);
+    outline-offset:2px;
+  }
+
+  .btn.primary{
+    background:linear-gradient(180deg,#a66f34,#70451f);
+    border-color:#c18a48;
+    color:#fff3cf;
+  }
+
+  .btn.primary:hover{background:linear-gradient(180deg,#bd8241,#865527)}
+  .btn.danger{background:linear-gradient(180deg,#632b25,#3c1814);border-color:#7d3a31}
+  .btn.danger:hover{background:linear-gradient(180deg,#7b342c,#4d1c18)}
+
+  .inputrow{
+    display:flex;
+    gap:8px;
+    margin:11px 0;
+    flex-wrap:wrap;
+  }
+
+  .textinput,.statinput{
+    background:#17100b;
+    border:1px solid #65492c;
+    color:var(--text);
+    border-radius:5px;
+    font-family:var(--font);
+  }
+
+  .textinput{padding:11px 12px;min-height:44px}
+  .textinput:focus,.statinput:focus{
+    outline:none;
+    border-color:var(--gold);
+    box-shadow:0 0 0 2px rgba(215,173,85,.10);
+  }
+
+  .statinput{padding:7px 8px}
+  .logmsg{
+    background:rgba(139,90,43,.12);
+    border-left:3px solid var(--gold-dim);
+    border-radius:3px;
+  }
+
+  footer{
+    color:#8f806b;
+    font-size:.7rem;
+    padding:18px 8px 0;
+    opacity:.72;
+    line-height:1.5;
+  }
+
+  ::-webkit-scrollbar{width:10px}
+  ::-webkit-scrollbar-track{background:#0c0907}
+  ::-webkit-scrollbar-thumb{background:#4a3420;border-radius:5px;border:2px solid #0c0907}
+  ::-webkit-scrollbar-thumb:hover{background:#6a4a2b}
+
+  /* Tablet */
+  @media (max-width:700px){
+    #app{width:min(100% - 18px,680px);padding-top:10px}
+    header.game-header{padding:16px 12px}
+    header.game-header::before,header.game-header::after{display:none}
+    .panel{padding:16px}
+    #hud{top:6px}
+  }
+
+  /* Phone */
+  @media (max-width:480px){
+    #app{width:100%;padding:7px 8px 38px}
+    header.game-header{
+      border-radius:6px;
+      padding:14px 10px;
+      margin-bottom:9px;
+    }
+    header.game-header h1{font-size:1.25rem;letter-spacing:1.5px}
+    header.game-header p{font-size:.68rem;letter-spacing:.7px}
+
+    #hud{
+      position:relative;
+      top:auto;
+      padding:10px;
+      border-radius:6px;
+      margin-bottom:9px;
+    }
+
+    .hud-row{gap:4px;margin-bottom:5px}
+    .hud-name{font-size:.92rem}
+    .hud-tag,.hud-gold{font-size:.72rem}
+    .bar{height:17px}
+
+    .panel{
+      padding:14px 12px;
+      margin-bottom:9px;
+      border-radius:6px;
+    }
+    .panel::after{inset:4px}
+    .panel h2{font-size:.95rem;letter-spacing:1px}
+    .panel p{font-size:.88rem;line-height:1.55}
+    .storytext{line-height:1.6}
+
+    .card{padding:11px 10px}
+    .card-title{font-size:.86rem}
+    .card-desc{font-size:.76rem}
+    .card-stat{font-size:.74rem}
+
+    .btnrow{
+      grid-template-columns:1fr;
+      gap:7px;
+      margin-top:10px;
+    }
+
+    .btn{
+      min-height:46px;
+      padding:12px 11px;
+      font-size:.84rem;
+    }
+
+    .inputrow{display:grid;grid-template-columns:1fr;gap:7px}
+    .textinput,.numinput{width:100%;max-width:none;min-width:0}
+    .inputrow .btn{width:100%}
+
+    .statrow{
+      display:grid;
+      grid-template-columns:1fr 72px;
+      margin:7px 0;
+    }
+    .statinput{width:72px}
+    .boss-name{font-size:1rem!important}
+    .boss-warn{font-size:.84rem!important}
+    footer{font-size:.64rem}
+  }
+
+  @media (max-width:360px){
+    header.game-header h1{font-size:1.1rem}
+    .panel{padding:12px 10px}
+    .panel p{font-size:.84rem}
+    .btn{font-size:.8rem}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{
+      animation-duration:.01ms!important;
+      transition-duration:.01ms!important;
+      scroll-behavior:auto!important;
+    }
+  }
+</style>
+
+<style>
+.select-card.weapon-card::after { content: none !important; }
+.select-card.weapon-card { min-height: 96px; }
+.select-card.weapon-selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px rgba(215,173,85,.28), 0 10px 24px rgba(0,0,0,.35);
+}
+</style>
+
+
+<style id="eldoria-class-themes">
+/* =========================================================
+   ELDORIA — CLASS THEMES
+   Theme is applied to body via .class-theme-*.
+   ========================================================= */
+
+/* Shared theme variables */
+:root {
+  --theme-primary: #8B0000;
+  --theme-secondary: #708090;
+  --theme-accent: #D4AF37;
+  --theme-bg: #120909;
+  --theme-panel: #241212;
+  --theme-panel-2: #321818;
+  --theme-text: #F5E8D0;
+  --theme-muted: #C5B6A0;
+  --theme-border: #8B0000;
+  --theme-glow: rgba(139,0,0,.32);
+}
+
+/* Warrior — blood red / iron */
+body.class-theme-warrior {
+  --theme-primary: #8B0000;
+  --theme-secondary: #708090;
+  --theme-accent: #C0C0C0;
+  --theme-bg: #120707;
+  --theme-panel: #241010;
+  --theme-panel-2: #351616;
+  --theme-border: #8B0000;
+  --theme-glow: rgba(139,0,0,.42);
+}
+
+/* Mage — electric blue / mystic violet */
+body.class-theme-mage {
+  --theme-primary: #0000FF;
+  --theme-secondary: #8A2BE2;
+  --theme-accent: #B8C7FF;
+  --theme-bg: #07071A;
+  --theme-panel: #10102C;
+  --theme-panel-2: #191945;
+  --theme-border: #4A35D8;
+  --theme-glow: rgba(0,0,255,.38);
+}
+
+/* Rogue — shadow black / poison green */
+body.class-theme-rogue {
+  --theme-primary: #1C1C1C;
+  --theme-secondary: #2E8B57;
+  --theme-accent: #6FCF97;
+  --theme-bg: #080B09;
+  --theme-panel: #121714;
+  --theme-panel-2: #1B241F;
+  --theme-border: #2E8B57;
+  --theme-glow: rgba(46,139,87,.36);
+}
+
+/* Paladin — holy gold / silver */
+body.class-theme-paladin {
+  --theme-primary: #FFD700;
+  --theme-secondary: #F8F8FF;
+  --theme-accent: #FFF2A6;
+  --theme-bg: #15130A;
+  --theme-panel: #28230F;
+  --theme-panel-2: #3A3213;
+  --theme-border: #FFD700;
+  --theme-glow: rgba(255,215,0,.38);
+}
+
+/* Archer — forest green / wood brown */
+body.class-theme-archer {
+  --theme-primary: #228B22;
+  --theme-secondary: #8B4513;
+  --theme-accent: #9ACD32;
+  --theme-bg: #081008;
+  --theme-panel: #122015;
+  --theme-panel-2: #1A2B1C;
+  --theme-border: #228B22;
+  --theme-glow: rgba(34,139,34,.36);
+}
+
+/* Necromancer — neon poison / dark indigo */
+body.class-theme-necromancer {
+  --theme-primary: #39FF14;
+  --theme-secondary: #4B0082;
+  --theme-accent: #9CFF85;
+  --theme-bg: #07020D;
+  --theme-panel: #12081A;
+  --theme-panel-2: #1D0D2B;
+  --theme-border: #4B0082;
+  --theme-glow: rgba(57,255,20,.30);
+}
+
+/* Override the fixed brown medieval palette with theme variables. */
+body[class*="class-theme-"] {
+  background:
+    radial-gradient(circle at 50% -10%, var(--theme-glow), transparent 42%),
+    linear-gradient(180deg, var(--theme-bg), #080808 78%);
+  color: var(--theme-text);
+  transition: background .35s ease, color .25s ease;
+}
+
+body[class*="class-theme-"] .panel,
+body[class*="class-theme-"] .card,
+body[class*="class-theme-"] .modal,
+body[class*="class-theme-"] .box,
+body[class*="class-theme-"] .section,
+body[class*="class-theme-"] .menu,
+body[class*="class-theme-"] .game-panel {
+  background: linear-gradient(145deg, var(--theme-panel-2), var(--theme-panel));
+  border-color: var(--theme-border);
+  box-shadow: 0 8px 28px rgba(0,0,0,.30);
+}
+
+body[class*="class-theme-"] h1,
+body[class*="class-theme-"] h2,
+body[class*="class-theme-"] h3,
+body[class*="class-theme-"] .title,
+body[class*="class-theme-"] .card-title,
+body[class*="class-theme-"] .gold,
+body[class*="class-theme-"] .accent {
+  color: var(--theme-accent);
+}
+
+body[class*="class-theme-"] .btn,
+body[class*="class-theme-"] button.primary,
+body[class*="class-theme-"] .primary-btn {
+  background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary));
+  border-color: var(--theme-accent);
+  color: #fff;
+  box-shadow: 0 4px 14px var(--theme-glow);
+}
+
+body[class*="class-theme-"] .select-card {
+  border-color: color-mix(in srgb, var(--theme-border) 55%, #777);
+  background: linear-gradient(145deg, var(--theme-panel-2), var(--theme-panel));
+}
+
+body[class*="class-theme-"] .select-card:hover,
+body[class*="class-theme-"] .select-card.selected,
+body[class*="class-theme-"] .select-card.race-selected,
+body[class*="class-theme-"] .select-card.class-selected,
+body[class*="class-theme-"] .select-card.weapon-selected {
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 1px var(--theme-primary), 0 0 24px var(--theme-glow);
+}
+
+body[class*="class-theme-"] input,
+body[class*="class-theme-"] select,
+body[class*="class-theme-"] textarea {
+  background: var(--theme-panel);
+  color: var(--theme-text);
+  border-color: var(--theme-border);
+}
+
+body[class*="class-theme-"] .progress,
+body[class*="class-theme-"] .bar,
+body[class*="class-theme-"] .meter {
+  border-color: var(--theme-border);
+}
+
+body[class*="class-theme-"] .progress > *,
+body[class*="class-theme-"] .bar > *,
+body[class*="class-theme-"] .meter > * {
+  background: linear-gradient(90deg, var(--theme-primary), var(--theme-secondary));
+}
+
+/* Keep the medieval parchment readable while still reflecting the class. */
+body[class*="class-theme-"] .parchment,
+body[class*="class-theme-"] .lore,
+body[class*="class-theme-"] .description {
+  border-color: var(--theme-border);
+}
+</style>
+
+
+<style id="eldoria-fixed-hp-mp-bars">
+/* HP/MP bars are gameplay indicators, not class-theme accents.
+   HP is always red, MP is always blue. */
+body[class*="class-theme-"] .hp-bar,
+body[class*="class-theme-"] .hp-fill,
+body[class*="class-theme-"] .bar-hp,
+body[class*="class-theme-"] .health-bar,
+body[class*="class-theme-"] .health-fill {
+  background: #8B0000 !important;
+  background-image: linear-gradient(90deg, #8B0000, #FF3333) !important;
+}
+
+body[class*="class-theme-"] .mp-bar,
+body[class*="class-theme-"] .mp-fill,
+body[class*="class-theme-"] .bar-mp,
+body[class*="class-theme-"] .mana-bar,
+body[class*="class-theme-"] .mana-fill {
+  background: #0000FF !important;
+  background-image: linear-gradient(90deg, #0000FF, #4D7CFF) !important;
+}
+
+/* Common generic bar structures used by the game. */
+body[class*="class-theme-"] .stat-bar.hp .fill,
+body[class*="class-theme-"] .stat-bar.health .fill {
+  background: #8B0000 !important;
+}
+body[class*="class-theme-"] .stat-bar.mp .fill,
+body[class*="class-theme-"] .stat-bar.mana .fill {
+  background: #0000FF !important;
+}
+
+/* Prevent the class theme's progress-bar rule from recoloring HP/MP. */
+body[class*="class-theme-"] .hp-bar *,
+body[class*="class-theme-"] .hp-fill *,
+body[class*="class-theme-"] .mp-bar *,
+body[class*="class-theme-"] .mp-fill * {
+  background-image: none;
+}
+
+/* The empty portion stays dark; only the fill width represents current HP/MP. */
+.hp-bar, .mp-bar, .bar-hp, .bar-mp, .health-bar, .mana-bar {
+  overflow: hidden;
+}
+</style>
+
+</head>
+<body>
+<div id="app">
+  <header class="game-header">
+    <h1>🏰 ELDORIA RPG 🏰</h1>
+    <p>50 Floors of Abyss — Petualangan Text-RPG Epik</p>
+  </header>
+  <div id="hud" class="hidden"></div>
+  <div id="screen"></div>
+  <footer>Eldoria RPG · HTML/JavaScript tunggal · Mode Neraka: Sarang Monster → Grinding Opsional → Dungeon Neraka</footer>
+</div>
+
+<script id="gamedata" type="application/json">
+{"PROLOGUE_STORY": "📖 PROLOG: KEBANGKITAN KEGELAPAN ELDORIA\n----------------------------------------------------------------------\nDahulu kala, benua Eldoria makmur di bawah perlindungan 'Segel Tujuh Bintang'.\nSegel purba ini mengurung Naga Primordial IGNIS dan entitas purba Abyss\ndi kedalaman 50 lantai bawah tanah.\n\nNamun pada malam Gerhana Abadi, langit terbelah menjadi merah darah.\nRetakan mistis menjalar dari pusat Takhta Kerajaan hingga ke lantai terdasar.\nSatu per satu segel penjaga retak. Kabut beracun dan pasukan kegelapan\nmerayap naik, memangsa desa perbatasan dan menumbangkan benteng para ksatria.\n\nDewan Tetua Eldoria mengumpulkan para pejuang terpilih dari segala penjuru ras.\nMisimu telah ditentukan: Menuruni 50 lantai Labirin Abyss, menguak misteri\npengkhianatan masa lalu, memperkuat diri hingga tingkat Ascended,\ndan memutuskan nasib akhir dunia: memulihkan Segel Purba... atau menjadi Penguasa Baru!\n----------------------------------------------------------------------", "RACES": {"1": {"name": "Human", "hp": 25, "mp": 15, "atk": 4, "def": 2, "crit": 5, "evasion": 5, "exp_bonus": 0.15, "str": 4, "int": 4, "cha": 6, "spd": 4, "dex": 4, "crs": 1}, "2": {"name": "Elf", "hp": 10, "mp": 45, "atk": 5, "def": 1, "crit": 8, "evasion": 10, "mp_cost_reduce": 0.2, "str": 2, "int": 8, "cha": 5, "spd": 5, "dex": 6, "crs": 1}, "3": {"name": "Orc", "hp": 55, "mp": 5, "atk": 10, "def": 4, "crit": 12, "evasion": 2, "hp_regen": 5, "str": 9, "int": 1, "cha": 2, "spd": 3, "dex": 4, "crs": 2}, "4": {"name": "Dwarf", "hp": 40, "mp": 10, "atk": 6, "def": 8, "crit": 6, "evasion": 3, "def_bonus": 0.2, "str": 7, "int": 3, "cha": 3, "spd": 2, "dex": 5, "crs": 1}, "5": {"name": "Beastkin", "hp": 30, "mp": 15, "atk": 8, "def": 3, "crit": 10, "evasion": 15, "speed_bonus": 1, "str": 5, "int": 2, "cha": 4, "spd": 9, "dex": 8, "crs": 1}, "6": {"name": "Fallen", "hp": 20, "mp": 30, "atk": 9, "def": 2, "crit": 10, "evasion": 6, "lifesteal": 0.08, "str": 4, "int": 5, "cha": 2, "spd": 4, "dex": 5, "crs": 9}}, "RACE_LORE": {"Human": "Bangsa paling adaptif di Eldoria. Diberkahi kecepatan belajar tinggi (+15% EXP) dan tekad baja.", "Elf": "Penjaga hutan kuno yang menyatu dengan aliran mana alamiah (-20% Konsumsi MP & Evasion tinggi).", "Orc": "Ksatria berdarah panas dari padang tandus. Memiliki ketahanan fisik raksasa dan pukulan kritikal dahsyat.", "Dwarf": "Pengrajin logam bawah tanah. Memiliki pertahanan fisik terkuat (+20% Total DEF) dan kebal racun ringan.", "Beastkin": "Keturunan pengelana rimba dengan naluri predator tinggi. Memiliki tingkat Evasion dan kecepatan tertinggi.", "Fallen": "Keturunan klan yang tersentuh energi Abyss. Menghasilkan efek Lifesteal alami pada setiap serangan biasa."}, "BASE_CLASSES": {"1": {"name": "Warrior", "hp": 40, "mp": 10, "atk": 7, "def": 5, "skill_name": "Tebasan Brutal", "skill_cost": 8, "skill_dmg": 22, "skill_heal": 0, "skill_lifesteal": 0.0, "str": 8, "int": 1, "cha": 2, "spd": 3, "dex": 4, "crs": 1}, "2": {"name": "Mage", "hp": 10, "mp": 50, "atk": 3, "def": 2, "skill_name": "Ledakan Arcane", "skill_cost": 14, "skill_dmg": 36, "skill_heal": 0, "skill_lifesteal": 0.0, "str": 1, "int": 9, "cha": 3, "spd": 2, "dex": 2, "crs": 2}, "3": {"name": "Rogue", "hp": 20, "mp": 20, "atk": 11, "def": 3, "skill_name": "Serangan Bayangan", "skill_cost": 10, "skill_dmg": 28, "skill_heal": 0, "skill_lifesteal": 0.2, "str": 4, "int": 2, "cha": 3, "spd": 8, "dex": 9, "crs": 2}, "4": {"name": "Paladin", "hp": 45, "mp": 25, "atk": 5, "def": 7, "skill_name": "Cahaya Penyucian", "skill_cost": 12, "skill_dmg": 18, "skill_heal": 30, "skill_lifesteal": 0.0, "str": 6, "int": 4, "cha": 8, "spd": 2, "dex": 3, "crs": 0}, "5": {"name": "Archer", "hp": 15, "mp": 20, "atk": 10, "def": 3, "skill_name": "Panah Bertubi", "skill_cost": 11, "skill_dmg": 26, "skill_poison_turns": 2, "skill_poison_dmg": 8, "str": 3, "int": 3, "cha": 3, "spd": 7, "dex": 9, "crs": 1}, "6": {"name": "Necromancer", "hp": 15, "mp": 35, "atk": 6, "def": 3, "skill_name": "Kutukan Jiwa", "skill_cost": 15, "skill_dmg": 25, "skill_lifesteal": 0.4, "skill_poison_turns": 3, "skill_poison_dmg": 9, "str": 2, "int": 7, "cha": 2, "spd": 3, "dex": 3, "crs": 9}}, "CLASS_LORE": {"Warrior": "Petarung garis depan berkekuatan fisik kokoh, ahli mengendalikan ritme pertempuran jarak dekat.", "Mage": "Peneliti misteri sihir yang memanipulasi energi Arcane murni untuk menghancurkan barisan musuh.", "Rogue": "Pembunuh berdarah dingin yang memanfaatkan celah dan titik lemah fatal untuk menghasilkan critical mematikan.", "Paladin": "Ksatria suci bersumpah setia yang menggabungkan pertahanan perisai tebal dan sihir restorasi ilahi.", "Archer": "Penembak jitu yang menguasai seni panah jarak jauh beracun dengan kecepatan tembakan luar biasa.", "Necromancer": "Penguasa sihir terlarang kematian yang menyerap daya hidup musuh untuk memperpanjang nyawanya."}, "CLASS_PROMOTIONS": {"Warrior": [{"name": "Berserker", "req_level": 10, "hp": 70, "mp": 10, "atk": 22, "def": 4, "skill_name": "Amukan Berdarah", "skill_cost": 14, "skill_dmg": 52, "skill_lifesteal": 0.2, "lore": "Pejuang amarah yang mengubah rasa sakit menjadi daya hancur brutal."}, {"name": "Guardian Baja", "req_level": 10, "hp": 90, "mp": 15, "atk": 12, "def": 22, "skill_name": "Benteng Tak Tergoyahkan", "skill_cost": 12, "skill_dmg": 30, "skill_heal": 35, "lore": "Dinding hidup pelindung yang sanggup menahan hantaman monster terkuat."}], "Mage": [{"name": "Archmage", "req_level": 10, "hp": 20, "mp": 70, "atk": 18, "def": 5, "skill_name": "Badai Meteor Api", "skill_cost": 22, "skill_dmg": 68, "lore": "Penguasa unsur destruktif yang mampu menurunkan hujan api dari langit."}, {"name": "Frost Warden", "req_level": 10, "hp": 35, "mp": 55, "atk": 14, "def": 12, "skill_name": "Cengkeraman Glasial", "skill_cost": 18, "skill_dmg": 45, "skill_poison_turns": 4, "skill_poison_dmg": 15, "lore": "Penyihir es abadi yang membekukan darah dan memperlambat detak jantung lawan."}], "Rogue": [{"name": "Shadow Assassin", "req_level": 10, "hp": 30, "mp": 25, "atk": 26, "def": 5, "skill_name": "Tikaman Belati Senyap", "skill_cost": 16, "skill_dmg": 60, "skill_lifesteal": 0.25, "lore": "Pembunuh bayangan yang lenyap dalam sekejap mata untuk memenggal mangsa."}, {"name": "Dual Duelist", "req_level": 10, "hp": 45, "mp": 20, "atk": 20, "def": 10, "skill_name": "Tarian Seribu Bilah", "skill_cost": 15, "skill_dmg": 48, "skill_heal": 20, "lore": "Pendekar sepasang pedang yang bergerak gesit sambil memulihkan stamina."}], "Paladin": [{"name": "Holy Templar", "req_level": 10, "hp": 80, "mp": 40, "atk": 15, "def": 18, "skill_name": "Hukuman Pengadilan Ilahi", "skill_cost": 18, "skill_dmg": 44, "skill_heal": 50, "lore": "Ksatria terpilih kuil yang memanggil berkah langit untuk menghancurkan iblis."}, {"name": "Aegis Master", "req_level": 10, "hp": 100, "mp": 25, "atk": 10, "def": 28, "skill_name": "Pantulan Perisai Suci", "skill_cost": 14, "skill_dmg": 32, "skill_heal": 35, "lore": "Spesialis pertahanan mutlak yang membalikkan kekuatan serangan lawan."}], "Archer": [{"name": "God-Eye Sniper", "req_level": 10, "hp": 30, "mp": 25, "atk": 28, "def": 6, "skill_name": "Tembakan Tembus Jiwa", "skill_cost": 16, "skill_dmg": 62, "lore": "Pemanah berjarak ribuan langkah yang tak pernah melewatkan bidikan fatal."}, {"name": "Venom Ranger", "req_level": 10, "hp": 40, "mp": 35, "atk": 18, "def": 8, "skill_name": "Hujan Panah Beracun", "skill_cost": 16, "skill_dmg": 40, "skill_poison_turns": 5, "skill_poison_dmg": 18, "lore": "Pemburu rimba rawa terlarang yang melumuri mata panah dengan bisa naga."}], "Necromancer": [{"name": "Soul Lich", "req_level": 10, "hp": 25, "mp": 65, "atk": 16, "def": 7, "skill_name": "Jeritan Kematian Abadi", "skill_cost": 22, "skill_dmg": 50, "skill_lifesteal": 0.5, "lore": "Calon raja undead yang menukar sebagian kemanusiaannya demi keabadian jiwa."}, {"name": "Plague Lord", "req_level": 10, "hp": 45, "mp": 45, "atk": 14, "def": 12, "skill_name": "Ledakan Wabah Maut", "skill_cost": 20, "skill_dmg": 42, "skill_poison_turns": 6, "skill_poison_dmg": 22, "lore": "Penyebar bibit penyakit hitam yang menggerogoti daging dan tulang musuh."}], "Berserker": [{"name": "Blood Tyrant", "req_level": 25, "hp": 150, "mp": 20, "atk": 45, "def": 10, "skill_name": "Kiamat Darah Merah", "skill_cost": 24, "skill_dmg": 110, "skill_lifesteal": 0.35, "lore": "Penguasa medan perang yang kekuatannya berlipat ganda dari aroma darah lawan."}], "Guardian Baja": [{"name": "Colossus Titan", "req_level": 25, "hp": 220, "mp": 30, "atk": 25, "def": 45, "skill_name": "Hantaman Gempa Bumi Purba", "skill_cost": 20, "skill_dmg": 75, "skill_heal": 80, "lore": "Raksasa berbatu zirah yang mampu menahan jatuhnya reruntuhan dungeon."}], "Archmage": [{"name": "Celestial Invoker", "req_level": 25, "hp": 50, "mp": 150, "atk": 38, "def": 12, "skill_name": "Supernova Bintang Kejora", "skill_cost": 36, "skill_dmg": 140, "lore": "Penjelajah kosmik yang memanggil energi bintang terdalam untuk melenyapkan monster."}], "Frost Warden": [{"name": "Glacier Sovereign", "req_level": 25, "hp": 80, "mp": 120, "atk": 30, "def": 25, "skill_name": "Zaman Es Absolut", "skill_cost": 30, "skill_dmg": 95, "skill_poison_turns": 5, "skill_poison_dmg": 30, "lore": "Penguasa puncak es utara yang mengubah sekeliling menjadi patung beku."}], "Shadow Assassin": [{"name": "Void Phantom", "req_level": 25, "hp": 70, "mp": 50, "atk": 52, "def": 14, "skill_name": "Eksekusi Dimensi Void", "skill_cost": 26, "skill_dmg": 125, "skill_lifesteal": 0.4, "lore": "Sosok tak berwujud yang menembus celah realitas untuk menusuk jantung target."}], "Dual Duelist": [{"name": "Blade Sovereign", "req_level": 25, "hp": 100, "mp": 40, "atk": 44, "def": 20, "skill_name": "Badai Bilah Cahaya", "skill_cost": 24, "skill_dmg": 100, "skill_heal": 45, "lore": "Master pedang legendaris yang menebas ribuan kali sebelum bayangan pedangnya terlihat."}], "Holy Templar": [{"name": "High Seraph Guardian", "req_level": 25, "hp": 180, "mp": 80, "atk": 32, "def": 35, "skill_name": "Penghakiman Sayap Malaikat", "skill_cost": 28, "skill_dmg": 90, "skill_heal": 110, "lore": "Ksatria berberkah cahaya surga tertinggi yang melindungi Eldoria dari kepunahan."}], "Aegis Master": [{"name": "Bastion of Dawn", "req_level": 25, "hp": 240, "mp": 50, "atk": 22, "def": 55, "skill_name": "Benteng Kubah Fajar", "skill_cost": 22, "skill_dmg": 65, "skill_heal": 90, "lore": "Pelindung gerbang terakhir yang perisainya tak mampu ditembus oleh nafas naga sekalipun."}], "God-Eye Sniper": [{"name": "Cosmic Ranger", "req_level": 25, "hp": 75, "mp": 50, "atk": 55, "def": 15, "skill_name": "Panah Gravitasi Kosmik", "skill_cost": 26, "skill_dmg": 130, "lore": "Pemanah yang menyelaraskan anak panah dengan pusaran energi gravitasi."}], "Venom Ranger": [{"name": "Abyssal Stalker", "req_level": 25, "hp": 95, "mp": 70, "atk": 40, "def": 20, "skill_name": "Bisa Naga Kuno Purba", "skill_cost": 26, "skill_dmg": 85, "skill_poison_turns": 6, "skill_poison_dmg": 38, "lore": "Penembak ulung yang memanfaatkan sari racun Abyss terpekat di dunia."}], "Soul Lich": [{"name": "Death Lord Thanatos", "req_level": 25, "hp": 65, "mp": 140, "atk": 36, "def": 18, "skill_name": "Pemanenan Arwah Hitam", "skill_cost": 34, "skill_dmg": 115, "skill_lifesteal": 0.65, "lore": "Raja kematian yang meremukkan jiwa para musuh menjadi bahan bakar sihirnya."}], "Plague Lord": [{"name": "Harbinger of Ruin", "req_level": 25, "hp": 110, "mp": 100, "atk": 32, "def": 26, "skill_name": "Wabah Kehancuran Global", "skill_cost": 32, "skill_dmg": 90, "skill_poison_turns": 7, "skill_poison_dmg": 45, "lore": "Pembawa malapetaka yang meninggalkan kehancuran mutlak di setiap jengkal tanah."}], "Blood Tyrant": [{"name": "Abyss Sovereign", "req_level": 40, "hp": 280, "mp": 50, "atk": 85, "def": 25, "skill_name": "Dominasi Jurang Mutlak", "skill_cost": 40, "skill_dmg": 220, "skill_lifesteal": 0.45, "lore": "Dewa kehancuran berdarah abadi."}], "Colossus Titan": [{"name": "Immortal Earthbound", "req_level": 40, "hp": 400, "mp": 60, "atk": 50, "def": 85, "skill_name": "Murka Jagat Bumi", "skill_cost": 35, "skill_dmg": 160, "skill_heal": 160, "lore": "Penjelmaan bumi yang tak bisa dihancurkan."}], "Celestial Invoker": [{"name": "Aether Archon", "req_level": 40, "hp": 120, "mp": 280, "atk": 75, "def": 28, "skill_name": "Ledakan Singularitas Aether", "skill_cost": 55, "skill_dmg": 260, "lore": "Penguasa penciptaan dan kehancuran semesta."}], "Glacier Sovereign": [{"name": "Frost Primordial", "req_level": 40, "hp": 160, "mp": 230, "atk": 65, "def": 45, "skill_name": "Pembekuan Waktu Kosmik", "skill_cost": 48, "skill_dmg": 190, "skill_poison_turns": 6, "skill_poison_dmg": 60, "lore": "Titik nol mutlak berwujud makhluk hidup."}], "Void Phantom": [{"name": "Void God Assassin", "req_level": 40, "hp": 150, "mp": 90, "atk": 98, "def": 30, "skill_name": "Tebasan Penghapus Takdir", "skill_cost": 42, "skill_dmg": 245, "skill_lifesteal": 0.5, "lore": "Menghapus eksistensi target dari benang waktu."}], "Blade Sovereign": [{"name": "Grand Sword Saint", "req_level": 40, "hp": 200, "mp": 80, "atk": 85, "def": 40, "skill_name": "Bilah Pemotong Langit", "skill_cost": 38, "skill_dmg": 210, "skill_heal": 80, "lore": "Puncak tertinggi ilmu pedang di seluruh semesta."}], "High Seraph Guardian": [{"name": "True Avatar of Light", "req_level": 40, "hp": 320, "mp": 150, "atk": 65, "def": 65, "skill_name": "Sinar Genesis Penciptaan", "skill_cost": 45, "skill_dmg": 180, "skill_heal": 220, "lore": "Titisan langsung dewa cahaya pelindung dunia."}], "Bastion of Dawn": [{"name": "Aegis of the Creator", "req_level": 40, "hp": 450, "mp": 100, "atk": 45, "def": 105, "skill_name": "Perlindungan Semesta Tak Bernoda", "skill_cost": 40, "skill_dmg": 140, "skill_heal": 180, "lore": "Perisai kosmik yang menolak segala bentuk kehancuran."}], "Cosmic Ranger": [{"name": "Starlight Godbow", "req_level": 40, "hp": 150, "mp": 100, "atk": 102, "def": 32, "skill_name": "Tembakan Bintang Berlubang Hitam", "skill_cost": 44, "skill_dmg": 250, "lore": "Satu anak panah mampu menembus jantung bintang."}], "Abyssal Stalker": [{"name": "Leviathan Serpent", "req_level": 40, "hp": 190, "mp": 130, "atk": 78, "def": 42, "skill_name": "Bisa Pemusnah Benua", "skill_cost": 42, "skill_dmg": 175, "skill_poison_turns": 8, "skill_poison_dmg": 75, "lore": "Racun purba yang mampu melarutkan gunung batu."}], "Death Lord Thanatos": [{"name": "Primordial Reaper", "req_level": 40, "hp": 140, "mp": 260, "atk": 72, "def": 35, "skill_name": "Panggilan Akhirat Terakhir", "skill_cost": 52, "skill_dmg": 230, "skill_lifesteal": 0.8, "lore": "Pemegang kunci gerbang akhirat tanpa batas."}], "Harbinger of Ruin": [{"name": "Apocalypse Herald", "req_level": 40, "hp": 220, "mp": 180, "atk": 68, "def": 50, "skill_name": "Tenggelamnya Peradaban", "skill_cost": 50, "skill_dmg": 185, "skill_poison_turns": 9, "skill_poison_dmg": 85, "lore": "Tanda akhir zaman bagi musuh Eldoria."}]}, "ZONES": [{"id": 1, "name": "Zona I: Katakombe Reruntuhan Gerbang", "floors": [1, 10], "desc": "Lorong batu basah dipenuhi lumut dan sisa reruntuhan penjaga masa lalu.", "boss_floor": 10, "boss_name": "Kapten Kaelen (Ksatria Arwah)", "mini_boss_floor": 5, "mini_boss_name": "King Slime Primordial"}, {"id": 2, "name": "Zona II: Hutan Berkabut & Menara Arkana", "floors": [11, 20], "desc": "Pohon raksasa bermutasi di bawah tanah dan menara kristal sihir yang terlupakan.", "boss_floor": 20, "boss_name": "Golem Arkana Penjaga Segel", "mini_boss_floor": 15, "mini_boss_name": "Harpy Queen Nyxandra"}, {"id": 3, "name": "Zona III: Cekungan Magma & Kuil Vulkanik", "floors": [21, 30], "desc": "Lautan lava mendidih dan kuil pemuja naga yang memuntahkan bara panas.", "boss_floor": 30, "boss_name": "Ksatria Terkutuk Malakor", "mini_boss_floor": 25, "mini_boss_name": "Drake Vulkanik Pyrath"}, {"id": 4, "name": "Zona IV: Labirin Jurang Abyss", "floors": [31, 40], "desc": "Kegelapan pekat tanpa dasar di mana suara bisikan kuno merusak kewarasan.", "boss_floor": 40, "boss_name": "Wyrm Kuno Jurang Dalam", "mini_boss_floor": 35, "mini_boss_name": "Ratu Kegelapan Vespera"}, {"id": 5, "name": "Zona V: Singularity Takhta Kuno & Segel Inti", "floors": [41, 50], "desc": "Dimensi retak di mana ruang dan waktu runtuh di hadapan Takhta IGNIS.", "boss_floor": 50, "boss_name": "Naga Primordial IGNIS (True Boss)", "mini_boss_floor": 45, "mini_boss_name": "Penjaga Segel Terakhir Elara"}], "BOSS_DATA": {"5": {"name": "King Slime Primordial", "hp": 760, "atk": 34, "def": 20, "exp": 260, "gold": 230, "loot": "Inti Kristal Slime Raksasa", "intro": "👑 Lendir raksasa berkilau emas bangkit dari genangan beracun lantai 5!", "lore": "Slime purba yang menyerap ratusan kristal mana dari reruntuhan gerbang."}, "10": {"name": "Kapten Kaelen (Ksatria Arwah)", "hp": 1550, "atk": 56, "def": 32, "exp": 660, "gold": 560, "loot": "Pedang Roh Eldoria (Legendaris)", "intro": "⚔️ 'Siapa yang berani mengganggu istirahat prajurit terakhir Eldoria?!'", "lore": "Pahlawan perang terdahulu yang gugur menjaga gerbang, kini arwahnya menguji mereka yang layak."}, "15": {"name": "Harpy Queen Nyxandra", "hp": 2150, "atk": 78, "def": 42, "exp": 1200, "gold": 950, "loot": "Mahkota Bulu Badai Harpy", "intro": "🌪️ Jeritan memekakkan telinga merobek udara saat Ratu Harpy turun dari sarangnya!", "lore": "Ratu buas berkecepatan kilat penguasa kanopi menara terlarang."}, "20": {"name": "Golem Arkana Penjaga Segel", "hp": 3150, "atk": 98, "def": 68, "exp": 1950, "gold": 1550, "loot": "Inti Segel Arkana Murni", "intro": "🗿 Mata kristal biru raksasa menyala! Batu purba bergetar membentuk wujud raksasa!", "lore": "Konstruk sihir kuno buatan Dewan Tetua generasi pertama."}, "25": {"name": "Drake Vulkanik Pyrath", "hp": 4350, "atk": 122, "def": 75, "exp": 3000, "gold": 2350, "loot": "Tombak Pembunuh Naga (Legendaris)", "intro": "🌋 Gelombang panas ekstrem meledak dari danau lava! Drake merah raksasa meraung!", "lore": "Keturunan langsung api neraka yang menguji ketahanan para petualang."}, "30": {"name": "Ksatria Terkutuk Malakor", "hp": 5850, "atk": 148, "def": 92, "exp": 4550, "gold": 3400, "loot": "Bilah Jiwa Terkutuk Malakor", "intro": "🖤 Ksatria berzirah hitam legam mencabut pedang raksasa berlumuran darah gelap!", "lore": "Mantan panglima tertinggi kerajaan yang mengorbankan jiwanya demi kekuatan Abyss."}, "35": {"name": "Ratu Kegelapan Vespera", "hp": 7650, "atk": 178, "def": 105, "exp": 6350, "gold": 4750, "loot": "Jubah Malam Tanpa Bintang", "intro": "🌑 Kabut hitam pekat menjelma menjadi wanita bermahkota duri ungu!", "lore": "Penyihir legendaris yang membelot dan menyatu dengan kegelapan abadi."}, "40": {"name": "Wyrm Kuno Jurang Dalam", "hp": 9850, "atk": 210, "def": 125, "exp": 8500, "gold": 6500, "loot": "Taring Wyrm Penghancur Dimensi", "intro": "🐉 Tanah retak membuka jurang tak terduga! Cacing naga purba Abyss meluncur ke atas!", "lore": "Makhluk karnivora tertua yang telah hidup selama ribuan tahun di bawah dungeon."}, "45": {"name": "Penjaga Segel Terakhir Elara", "hp": 12400, "atk": 240, "def": 152, "exp": 11500, "gold": 9500, "loot": "Cincin Bintang Fajar Eldoria", "intro": "🌙 'Petualang... apakah kau datang untuk menyelamatkan kami, atau mempercepat kiamat?'", "lore": "Penjaga suci generasi terakhir yang melindungi pecahan segel utama dari kehancuran."}, "50": {"name": "Naga Primordial IGNIS (True Boss)", "hp": 20000, "atk": 310, "def": 190, "exp": 32000, "gold": 25000, "loot": "Jantung Purba Ignis (Artefak Mahakuasa)", "intro": "🔥 KELOPAK MATA EMAS RAKSASA MEMBUKA. NAGA TERBESAR SEPANJANG SEJARAH BANGKIT!", "lore": "Entitas abadi penjaga gerbang terdalam yang memikul beban menahan kiamat Abyss."}}, "ZONE_ENEMIES": {"1": [["Slime Hijau Beracun", 70, 16, 8, 25, 18, "Lendir Slime Hijau"], ["Goblin Penjelajah", 101, 22, 9, 38, 28, "Belati Goblin"], ["Kelelawar Raksasa Gua", 62, 19, 6, 28, 20, "Sayap Kelelawar Gelap"], ["Tikus Raksasa Got Reruntuhan", 78, 17, 8, 26, 19, "Ekor Tikus Raksasa"], ["Laba-Laba Gua Berbisa", 90, 23, 11, 35, 25, "Kelenjar Racun Laba-Laba"], ["Kobold Penggali Makam", 108, 25, 12, 42, 30, "Taring Kobold Purba"]], "2": [["Serigala Bayangan Hutan", 176, 38, 19, 90, 75, "Taring Serigala Bayangan"], ["Prajurit Skeleton Berzirah", 216, 43, 27, 115, 95, "Tulang Ksatria Tua"], ["Penyihir Dark-Cult Fanatik", 162, 57, 16, 140, 120, "Jubah Pemuja Gelap"], ["Zombie Penjaga Makam", 243, 35, 24, 105, 85, "Perban Terkutuk"], ["Hantu Prajurit Tak Bernama", 202, 49, 22, 130, 110, "Debu Arwah Prajurit"], ["Roh Hutan Purba Rusak", 189, 54, 20, 145, 125, "Fragmen Kayu Suci Terbakar"]], "3": [["Orc Pemukul Magma", 336, 62, 36, 230, 190, "Kulit Orc Mengeras"], ["Salamander Api Menyala", 288, 72, 31, 260, 220, "Inti Api Salamander"], ["Golem Lava Pijar", 432, 58, 54, 290, 240, "Batu Magma Berkristal"], ["Wyvern Pemburu Kawah", 324, 77, 34, 280, 230, "Sisik Wyvern Api"], ["Mimic Peti Terkutuk", 372, 82, 42, 340, 350, "Koin Emas Terkutuk"], ["Penyihir Api Hitam", 264, 90, 26, 310, 270, "Tongkat Bara Merah"]], "4": [["Ksatria Abyss Berdarah", 598, 109, 69, 550, 480, "Zirah Hitam Abyss"], ["Iblis Bayangan Penjerat Jiwa", 506, 132, 55, 620, 540, "Esensi Kegelapan Murni"], ["Naga Bayangan Tanpa Raga", 690, 138, 75, 750, 680, "Sisik Naga Bayangan"], ["Pemburu Kepala Dimensi Gelap", 564, 150, 57, 700, 600, "Belati Pemotong Jiwa"], ["Lintah Jiwa Purba", 667, 103, 63, 660, 580, "Lendir Penyerap Mana"], ["Penjaga Pintu Abyss", 747, 121, 86, 800, 720, "Batu Gerbang Kematian"]], "5": [["Penjaga Singularity Takhta", 1045, 176, 105, 1300, 1100, "Pecahan Logam Kosmik"], ["Entitas Void Tanpa Wajah", 935, 204, 94, 1450, 1250, "Esensi Singularitas"], ["Chimera Naga Arkana", 1210, 193, 121, 1650, 1400, "Cakar Naga Tiga Kepala"], ["Arwah Raja Terkutuk", 990, 215, 99, 1550, 1350, "Mahkota Raja Gugur"], ["Manifestasi Kegelapan Sejati", 1320, 231, 132, 1900, 1600, "Debu Kosmik Gelap"]]}, "WEAPONS_TIER": {"1": [{"name": "Belati Slime Kental", "atk": 14, "price": 40, "lore": "Belati tajam terlumuri lendir kental monster."}, {"name": "Pentungan Goblin Berduri", "atk": 17, "price": 55, "lore": "Senjata kasar tapi menghasilkan luka lebam parah."}, {"name": "Pedang Pendek Prajurit", "atk": 20, "price": 75, "lore": "Pedang standar penjaga gerbang Eldoria."}, {"name": "Busur Pemburu Hutan", "atk": 18, "price": 65, "lore": "Busur kayu fleksibel dengan tarikan stabil."}], "2": [{"name": "Pedang Skeleton Berkarat", "atk": 32, "price": 160, "lore": "Pedang tua yang masih menyimpan dendam pemiliknya."}, {"name": "Tombak Prajurit Menara", "atk": 38, "price": 210, "lore": "Tombak panjang penusuk zirah musuh."}, {"name": "Tongkat Sihir Arkana Biru", "atk": 35, "price": 190, "lore": "Mengalirkan mana dengan kestabilan tinggi."}, {"name": "Belati Kembar Pembunuh Hutan", "atk": 42, "price": 250, "lore": "Sepasang bilah tipis beracun."}], "3": [{"name": "Kapak Orc Raksasa Magma", "atk": 65, "price": 600, "lore": "Kapak berat bersuhu membara."}, {"name": "Cakar Golem Batu Pijar", "atk": 72, "price": 750, "lore": "Ditempa dari pecahan tangan golem lava."}, {"name": "Pedang Baja Obsidian", "atk": 80, "price": 900, "lore": "Bilah kaca vulkanik super tajam."}, {"name": "Busur Pembakar Nyx", "atk": 76, "price": 820, "lore": "Melontarkan anak panah berapi membara."}], "4": [{"name": "Pedang Ksatria Abyss", "atk": 125, "price": 2200, "lore": "Bilah gelap yang menyedot cahaya sekitar."}, {"name": "Tongkat Kegelapan Void", "atk": 135, "price": 2600, "lore": "Memicu ledakan mana hitam pekat."}, {"name": "Kapak Penghancur Dimensi", "atk": 150, "price": 3100, "lore": "Meretakkan udara di setiap ayunan."}, {"name": "Bilah Penjerat Jiwa", "atk": 140, "price": 2800, "lore": "Menyerap sisa energi musuh yang terluka."}], "5": [{"name": "Pedang Fajar Keemasan Genesis", "atk": 220, "price": 8000, "lore": "Senjata legendaris pemutus rantai takdir."}, {"name": "Tombak Penguasa Semesta", "atk": 250, "price": 10000, "lore": "Relik purba yang konon diciptakan sebelum peradaban bermula."}, {"name": "Bilah Hitam Penghapus Realitas", "atk": 275, "price": 12000, "lore": "Ditempa dari materi void terpadat."}]}, "ARMORS_TIER": {"1": [{"name": "Jubah Kain Usang", "def": 5, "hp": 20, "price": 40}, {"name": "Perisai Kayu Rimba", "def": 8, "hp": 30, "price": 60}, {"name": "Zirah Kulit Rusa Liar", "def": 12, "hp": 45, "price": 90}], "2": [{"name": "Zirah Rantai Prajurit", "def": 22, "hp": 80, "price": 200}, {"name": "Perisai Tulang Ksatria", "def": 28, "hp": 110, "price": 280}, {"name": "Jubah Arkana Pelindung Mana", "def": 20, "mp": 60, "price": 250}], "3": [{"name": "Zirah Kulit Orc Magma", "def": 45, "hp": 200, "price": 700}, {"name": "Perisai Batu Obsidian", "def": 58, "hp": 260, "price": 950}, {"name": "Zirah Sisik Naga Muda", "def": 68, "hp": 320, "price": 1200}], "4": [{"name": "Zirah Hitam Abyss Sovereign", "def": 95, "hp": 550, "price": 2800}, {"name": "Perisai Iblis Pemantul Serangan", "def": 115, "hp": 680, "price": 3600}, {"name": "Jubah Pelindung Void", "def": 88, "mp": 180, "hp": 450, "price": 3100}], "5": [{"name": "Zirah Naga Purba Ignis", "def": 160, "hp": 1200, "price": 9000}, {"name": "Perisai Kubah Bintang Surga", "def": 190, "hp": 1500, "price": 11500}, {"name": "Jubah Penjaga Waktu Abadi", "def": 145, "hp": 1000, "mp": 300, "price": 10500}]}, "SKILL_SCROLLS_TIER": {"1": [{"name": "Cakar Beracun Slime", "cost": 9, "dmg": 24, "poison_turns": 3, "poison_dmg": 8, "sell_price": 40}, {"name": "Hantaman Perisai Kayu", "cost": 8, "dmg": 18, "heal": 15, "sell_price": 40}], "2": [{"name": "Panah Es Pembeku", "cost": 14, "dmg": 38, "poison_turns": 3, "poison_dmg": 14, "sell_price": 100}, {"name": "Rantai Bayangan Pengikat", "cost": 15, "dmg": 44, "lifesteal": 0.25, "sell_price": 120}], "3": [{"name": "Letusan Magma Neraka", "cost": 22, "dmg": 78, "poison_turns": 4, "poison_dmg": 24, "sell_price": 300}, {"name": "Gempa Bumi Penghancur", "cost": 20, "dmg": 85, "heal": 30, "sell_price": 320}], "4": [{"name": "Nafas Naga Abyss", "cost": 32, "dmg": 135, "poison_turns": 5, "poison_dmg": 38, "sell_price": 800}, {"name": "Cengkeraman Jiwa Void", "cost": 30, "dmg": 125, "lifesteal": 0.45, "sell_price": 850}], "5": [{"name": "Pusaran Kiamat Singularitas", "cost": 45, "dmg": 230, "lifesteal": 0.3, "sell_price": 2500}, {"name": "Cahaya Restorasi Genesis", "cost": 38, "dmg": 110, "heal": 250, "sell_price": 2500}]}, "LOOT_SELL_VALUE": {"Lendir Slime Hijau": 12, "Belati Goblin": 15, "Sayap Kelelawar Gelap": 14, "Ekor Tikus Raksasa": 12, "Kelenjar Racun Laba-Laba": 18, "Taring Kobold Purba": 20, "Inti Kristal Slime Raksasa": 150, "Pedang Roh Eldoria (Legendaris)": 400, "Taring Serigala Bayangan": 35, "Tulang Ksatria Tua": 42, "Jubah Pemuja Gelap": 48, "Perban Terkutuk": 38, "Debu Arwah Prajurit": 50, "Fragmen Kayu Suci Terbakar": 55, "Mahkota Bulu Badai Harpy": 450, "Inti Segel Arkana Murni": 600, "Kulit Orc Mengeras": 85, "Inti Api Salamander": 95, "Batu Magma Berkristal": 110, "Sisik Wyvern Api": 105, "Koin Emas Terkutuk": 130, "Tongkat Bara Merah": 120, "Tombak Pembunuh Naga (Legendaris)": 1200, "Bilah Jiwa Terkutuk Malakor": 1500, "Zirah Hitam Abyss": 220, "Esensi Kegelapan Murni": 260, "Sisik Naga Bayangan": 300, "Belati Pemotong Jiwa": 280, "Lendir Penyerap Mana": 250, "Batu Gerbang Kematian": 320, "Jubah Malam Tanpa Bintang": 2400, "Taring Wyrm Penghancur Dimensi": 3000, "Pecahan Logam Kosmik": 500, "Esensi Singularitas": 650, "Cakar Naga Tiga Kepala": 750, "Mahkota Raja Gugur": 800, "Debu Kosmik Gelap": 900, "Cincin Bintang Fajar Eldoria": 5000, "Jantung Purba Ignis (Artefak Mahakuasa)": 15000, "Pecahan Segel Eldoria": 1000}, "CRAFT_RECIPES": [{"name": "Pedang Ramuan Slime Berbisa", "type": "weapon", "atk": 26, "requires": {"Lendir Slime Hijau": 4, "Belati Goblin": 2}, "desc": "Pedang berlumur racun kental untuk awal petualangan."}, {"name": "Perisai Tulang Kobold", "type": "armor", "def": 18, "hp": 60, "requires": {"Taring Kobold Purba": 3, "Ekor Tikus Raksasa": 4}, "desc": "Perisai ringan penangkis cakar binatang buas."}, {"name": "Pedang Serigala Bertulang Emas", "type": "weapon", "atk": 48, "requires": {"Taring Serigala Bayangan": 4, "Tulang Ksatria Tua": 3}, "desc": "Bilah kokoh bermata taring serigala bayangan."}, {"name": "Jubah Arwah Penjaga", "type": "armor", "def": 35, "hp": 150, "requires": {"Debu Arwah Prajurit": 4, "Jubah Pemuja Gelap": 3}, "desc": "Jubah berhawa dingin pelindung serangan sihir."}, {"name": "Kapak Golem Magma Raksasa", "type": "weapon", "atk": 95, "requires": {"Kulit Orc Mengeras": 4, "Batu Magma Berkristal": 3, "Inti Api Salamander": 2}, "desc": "Kapak tempur bersuhu ratusan derajat celcius."}, {"name": "Zirah Sisik Wyvern Vulkanik", "type": "armor", "def": 75, "hp": 380, "requires": {"Sisik Wyvern Api": 4, "Batu Magma Berkristal": 3}, "desc": "Zirah kebal api terbuat dari sisik wyvern kawah."}, {"name": "Pedang Naga Kegelapan Abyss", "type": "weapon", "atk": 165, "requires": {"Sisik Naga Bayangan": 4, "Esensi Kegelapan Murni": 3, "Zirah Hitam Abyss": 2}, "desc": "Pedang pengisap cahaya berkekuatan jurang Abyss."}, {"name": "Mantel Pelindung Jiwa Abyss", "type": "armor", "def": 125, "hp": 800, "requires": {"Esensi Kegelapan Murni": 4, "Batu Gerbang Kematian": 3}, "desc": "Melindungi pemakainya dari bisikan kutukan kegelapan."}, {"name": "Bilah Singularitas Kosmik", "type": "weapon", "atk": 290, "requires": {"Pecahan Logam Kosmik": 5, "Esensi Singularitas": 4, "Debu Kosmik Gelap": 3}, "desc": "Senjata pamungkas penembus segel dimensi waktu."}, {"name": "Zirah Takhta Abadi Genesis", "type": "armor", "def": 210, "hp": 1800, "requires": {"Esensi Singularitas": 4, "Cakar Naga Tiga Kepala": 3, "Pecahan Logam Kosmik": 4}, "desc": "Zirah terkuat yang pernah diciptakan di muka bumi."}], "STORY_DATA": {"1": "📜 LANTAI 1 - GERBANG RERUNTUHAN ELDORIA\nPintu gerbang batu berlumut runtuh berkeping-keping. Obor para prajurit terdahulu masih berkedip lemah, seolah menunggu seseorang datang menyalakannya kembali.", "2": "📜 LANTAI 2 - LORONG PERTEMPURAN TERAKHIR\nBekas darah kering membentuk jejak panjang di lantai batu. Tombak-tombak patah tergeletak berserakan, dan dari kedalaman lorong terdengar isak tangis samar yang tak jelas asalnya.", "3": "📜 LANTAI 3 - DINDING NAMA YANG TERHAPUS\nRatusan nama prajurit gugur terpahat rapi di dinding sebagai penghormatan. Namun satu nama tampak digores paksa hingga tak terbaca—seolah seseorang ingin dia dilupakan selamanya.", "4": "📜 LANTAI 4 - RUANG SURAT RAHASIA\nUap dingin menyembul dari retakan lantai. Di sudut ruangan kamu menemukan surat lusuh berisi perintah rahasia berstempel Dewan Tetua, tintanya nyaris pudar dimakan waktu.", "5": "📜 LANTAI 5 - SARANG RAJA SLIME PURBA\nLantai bergetar oleh genangan asam pekat. Tumpukan tulang belulang prajurit yang gagal mengalahkan penguasa lendir ini menjadi peringatan bagi siapa pun yang berani melangkah lebih jauh.", "6": "📜 LANTAI 6 - LORONG SETELAH KEMENANGAN\nSetelah Raja Slime tumbang, retakan besar terbuka menuju ruang bawah yang lebih gelap. Udara di sini terasa berat, sarat oleh dendam yang belum terselesaikan.", "7": "📜 LANTAI 7 - FRESKO TUJUH BINTANG\nSebuah fresko raksasa menghiasi dinding: tujuh bintang bersegel mengelilingi seekor naga yang tertidur damai. Namun satu bintang tampak retak dan cahayanya nyaris padam.", "8": "📜 LANTAI 8 - RUANG TAHANAN TERLUPAKAN\nRantai besi berkarat tergantung dari langit-langit, bekas ruang tahanan yang telah lama ditinggalkan. Di batu dinding, satu kata terpahat kasar dengan amarah: 'PENGKHIANATAN'.", "9": "📜 LANTAI 9 - GERBANG SANG PENJAGA\nGerbang ganda berlambang kerajaan berdiri kokoh di hadapanmu. Dari baliknya, langkah kaki berat bergema pelan—seakan seseorang, atau sesuatu, telah lama menunggu kedatanganmu.", "10": "📜 LANTAI 10 - AULA MAKAM PAHLAWAN GUGUR\nRatusan nisan ksatria Eldoria berbaris rapi dalam keheningan abadi. Arwah Kapten Kaelen berdiri tegak menjaga gerbang zona berikutnya, matanya menyala oleh dendam yang tak kunjung padam.", "11": "📜 LANTAI 11 - KANOPI HUTAN BAWAH TANAH\nUdara lembab berganti aroma kayu basah. Bisikan dedaunan bercahaya biru mistis terdengar seperti nyanyian pelan yang menyambut sekaligus memperingatkanmu.", "12": "📜 LANTAI 12 - JEMBATAN AKAR PURBA\nAkar raksasa membentuk jembatan alami melintasi jurang hutan. Ukiran kuno di kulit kayu menceritakan pakta pertama antara manusia dan naga—sebuah aliansi yang kini nyaris terlupakan.", "13": "📜 LANTAI 13 - KABUT PEMANGGIL\nKabut biru pekat menyelimuti segalanya hingga jarak pandang nyaris nol. Dari balik kabut, bisikan lembut berulang kali memanggil namamu, seolah mengenalmu sejak lama.", "14": "📜 LANTAI 14 - SARANG SANG RATU BADAI\nSarang burung raksasa bertumpuk tinggi di dahan pohon purba. Bulu-bulu badai berserakan di tanah, pertanda Ratu Harpy telah lama berjaga di wilayah ini tanpa ada yang berani mendekat.", "15": "📜 LANTAI 15 - MENARA BADAI HARPY\nAngin kencang menderu dari celah tebing bawah tanah tempat kawanan Harpy bertengger. Ratu mereka menatap tajam ke arahmu—penyusup pertama dalam satu generasi.", "16": "📜 LANTAI 16 - CAHAYA MENARA PERTAMA\nMenara kristal pertama muncul di kejauhan, memancarkan cahaya biru redup yang menembus kabut abadi. Dengungan sihir kuno terasa bergetar lembut di bawah kakimu.", "17": "📜 LANTAI 17 - LANTAI RUNE ARKANA\nLantai marmer retak berukir rune-rune arkana kuno. Sisa energi sihir masih terasa menyengat kulit setiap kali kamu melangkah melewatinya.", "18": "📜 LANTAI 18 - PERPUSTAKAAN RERUNTUHAN\nRak-rak berisi gulungan yang sebagian besar telah terbakar berdiri sunyi. Satu gulungan tetap utuh, menyimpan sejarah asli tentang penciptaan Segel Tujuh Bintang.", "19": "📜 LANTAI 19 - LORONG MENUJU INTI MENARA\nLorong menyempit drastis saat kamu mendekati inti menara. Dengungan energi sang penjaga golem terasa semakin kuat, bergema di setiap tulangmu.", "20": "📜 LANTAI 20 - RUANG SEGEL ARKANA KEDUA\nLingkaran sihir raksasa berputar lambat di tengah ruangan. Golem pelindung batu bersiap menguji kelayakanmu untuk melangkah lebih dalam ke jantung Eldoria.", "21": "📜 LANTAI 21 - CEKUNGAN SUNGAI LAVA\nSuhu melonjak drastis begitu kamu memasuki zona ini. Batu pijar meleleh menjadi sungai magma yang membakar tapak sepatu, memaksa setiap langkah dilakukan dengan hati-hati.", "22": "📜 LANTAI 22 - JEMBATAN SANG KSATRIA LELEH\nSebuah jembatan batu membentang di atas sungai lava. Patung seorang ksatria berdiri di tengahnya, separuh tubuhnya meleleh—monumen peringatan bagi mereka yang gagal menyeberang.", "23": "📜 LANTAI 23 - ALTAR PEMUJA NAGA\nAltar tua berlumur abu vulkanik berdiri sunyi. Sisa sesajen yang mengering menunjukkan sebuah ritual yang ditinggalkan secara tergesa-gesa, seolah pemujanya melarikan diri dari sesuatu yang mengerikan.", "24": "📜 LANTAI 24 - GUA KRISTAL OBSIDIAN\nDinding gua berkilau memantulkan cahaya api dari kejauhan. Suara auman menggema samar dari kedalaman terowongan, semakin dekat dengan setiap langkahmu.", "25": "📜 LANTAI 25 - KAWAH DRAKE PURBA\nAbu vulkanik berjatuhan seperti salju hitam di atas sarang naga api merah. Drake Pyrath membuka mata, merasakan kehadiran penyusup di wilayah kekuasaannya.", "26": "📜 LANTAI 26 - RERUNTUHAN BENTENG VULKANIK\nReruntuhan benteng ini dulunya markas pasukan Panglima Malakor, sebelum dia menghilang ditelan kegelapan Abyss dalam semalam tanpa jejak.", "27": "📜 LANTAI 27 - DINDING KISAH PERANG SAUDARA\nUkiran di dinding batu menceritakan sebuah perang saudara yang kelam: seorang panglima besar dikhianati oleh rekan seperjuangannya sendiri demi kekuasaan.", "28": "📜 LANTAI 28 - KOLAM LAVA TENANG\nSebuah kolam lava yang tenang memantulkan bayangan samar sosok berzirah hitam legam. Saat kamu mendekat untuk melihat lebih jelas, bayangan itu lenyap tanpa jejak.", "29": "📜 LANTAI 29 - GERBANG KUIL TERAKHIR\nDua patung naga raksasa berdiri menjaga gerbang kuil terdalam. Mata batu mereka seakan mengikuti setiap gerakanmu, seolah menilai apakah kamu layak melangkah lebih jauh.", "30": "📜 LANTAI 30 - KUIL MALAKOR SANG PENGKHIANAT\nTahta hitam berlumuran darah kuno berdiri di tengah kuil. Patung-patung dewa perang telah dihancurkan tanpa sisa—jejak amarah seorang panglima yang kehilangan segalanya.", "31": "📜 LANTAI 31 - GERBANG JURANG ABYSS\nCahaya obor tak lagi mampu menembus kegelapan pekat di depanmu. Gravitasi terasa aneh dan bisikan tak dikenal menggema dari segala arah, mencoba merasuki pikiranmu.", "32": "📜 LANTAI 32 - LORONG GRAVITASI PATAH\nLangkahmu sesekali melayang tanpa peringatan, seolah hukum alam tak berlaku di sini. Bisikan tak dikenal menyebut namamu berulang kali, pelan namun mengganggu.", "33": "📜 LANTAI 33 - ISTANA YANG MELAYANG\nReruntuhan sebuah istana melayang bebas di kehampaan ruang. Sebuah potret keluarga kerajaan yang robek tergantung terbalik, mengisyaratkan kehancuran yang datang dari dalam.", "34": "📜 LANTAI 34 - WAJAH-WAJAH DALAM KABUT\nKabut hitam pekat sesekali membentuk wajah-wajah yang menjerit sesaat sebelum lenyap ditelan kegelapan kembali. Kamu memilih untuk tidak berhenti dan menatapnya terlalu lama.", "35": "📜 LANTAI 35 - AULA RATU MALAM VESPERA\nBunga-bunga mawar hitam bermekaran di atas lantai kristal ungu yang dingin membeku. Ratu Vespera menantimu di singgasananya, tersenyum seolah telah lama mengetahui kedatanganmu.", "36": "📜 LANTAI 36 - SISA TAHTA RATU YANG JATUH\nRuang singgasana kecil bertirai ungu lusuh menjadi saksi sisa kejayaan Vespera sebelum ia sepenuhnya menyatu dengan kegelapan yang dulu ia coba lawan.", "37": "📜 LANTAI 37 - MURAL KEDUA: HAKIKAT SANG NAGA\nSebuah mural besar menampilkan Ignis bukan sebagai monster buas, melainkan penjaga gerbang yang menahan Abyss agar tak menelan seluruh benua Eldoria.", "38": "📜 LANTAI 38 - CERUK CERMIN RETAK\nDi ceruk sunyi ini berdiri sebuah cermin retak berdebu. Pantulanmu sesaat menunjukkan wajah asing berzirah gelap sebelum kembali normal—sebuah peringatan tentang apa yang bisa kamu jadi.", "39": "📜 LANTAI 39 - JEMBATAN TULANG RAKSASA\nJurang tanpa dasar terbentang luas di hadapanmu. Satu-satunya jalan menyeberang adalah jembatan yang tersusun dari tulang-belulang makhluk raksasa yang telah lama mati.", "40": "📜 LANTAI 40 - SARANG WYRM JURANG PURBA\nTanah berguncang dahsyat tanpa peringatan. Retakan jurang terdalam menjadi rumah bagi monster pemangsa zaman purba yang telah tidur selama ribuan tahun.", "41": "📜 LANTAI 41 - SINGULARITAS DIMENSI RETAK\nPotongan reruntuhan kerajaan melayang bebas di udara hampa tanpa gravitasi. Kamu menyadari bahwa dirimu kini berjalan di batas antara dunia nyata dan Abyss itu sendiri.", "42": "📜 LANTAI 42 - WAKTU YANG MEMBEKU\nWaktu terasa melambat drastis di lantai ini. Serpihan reruntuhan melayang membeku di udara seakan setiap detik dihentikan paksa oleh kekuatan yang tak terlihat.", "43": "📜 LANTAI 43 - CAHAYA BINTANG PURBA\nCahaya bintang purba menembus retakan dimensi di sekelilingmu. Kamu merasakan kehadiran sesuatu yang sangat kuno tengah mengawasi setiap langkahmu dari kejauhan.", "44": "📜 LANTAI 44 - LORONG NYANYIAN KRISTAL\nDinding kristal di lorong ini bernyanyi pelan, melodi kuno yang terdengar seperti doa perpisahan—sebuah requiem bagi mereka yang gugur menjaga segel selama ini.", "45": "📜 LANTAI 45 - ALTAR PENJAGA SUCI ELARA\nCahaya bulan lembut memancar dari kristal segel terakhir. Elara menatapmu dengan pandangan penuh haru, seolah menanggung beban ribuan tahun sendirian.", "46": "📜 LANTAI 46 - RUANG MEDITASI ELARA\nRuangan ini dipenuhi lilin yang telah lama padam dan gulungan doa yang belum sempat selesai ditulis—jejak keputusasaan sang penjaga terakhir dalam kesendiriannya.", "47": "📜 LANTAI 47 - RANTAI SEGEL YANG RETAK\nRantai segel raksasa mulai terlihat jelas, berkilau namun retak di banyak titik. Kamu menyadari betapa rapuhnya penghalang terakhir yang menahan sesuatu yang amat besar.", "48": "📜 LANTAI 48 - GERBANG PANAS DAN DINGIN\nSuhu udara berubah drastis tanpa peringatan, panas membara bercampur dingin membeku dalam satu ruangan yang sama—pertanda gerbang terakhir sudah sangat dekat.", "49": "📜 LANTAI 49 - SINGGASANA TAKDIR TERAKHIR\nSebuah singgasana kosong berdiri megah di hadapan gerbang naga raksasa. Ukiran terakhir di lantai bertuliskan tegas: 'Pembebas atau Penakluk, pilihlah takdirmu sendiri.'", "50": "📜 LANTAI 50 - SINGGASANA NAGA PRIMORDIAL IGNIS\nLantai terdasar dari seluruh dunia terbentang di hadapanmu. Rantai segel raksasa mengikat tubuh naga purba Ignis—dan kini nasib Eldoria sepenuhnya berada di tanganmu."}, "STORY_EVENTS": {"1": [["kael_intro", "🕯️ HELM KAPTEN KAEL\nDi antara puing gerbang, kamu menemukan helm tua berukir lambang kerajaan Eldoria.\nSebuah bisikan terdengar: 'Jangan percaya kata Dewan Tetua... pergilah lebih dalam.'"], ["seal_fragment_1", "🔷 PECAHAN SEGEL I\nKristal biru berdenyut hangat di tanganmu. Kamu memperoleh [Pecahan Segel Eldoria]!"], ["kaelen_diary", "📖 BUKU HARIAN TERAKHIR KAELEN\n'Hari ke-40 pengepungan. Bala bantuan tak kunjung datang. Aku mulai curiga kami sengaja ditinggalkan...'\nHalaman terakhir robek, seolah ditulis terburu-buru sebelum gugur."], ["noble_seal_choice", "👑 STEMPEL BERLUMUR DARAH\nKamu menemukan stempel kerajaan berlumur darah kering, bukti bahwa para bangsawan pernah\nmemalsukan perintah evakuasi demi menyelamatkan diri mereka sendiri saat Gerhana Abadi.\nApa yang akan kamu lakukan dengan bukti ini?", [{"label": "Simpan sebagai bukti untuk mengadili Dewan Tetua kelak", "rep": 8, "flag": "expose_council", "result": "Kamu menyimpan stempel itu erat-erat. Suatu hari, keadilan akan ditegakkan."}, {"label": "Hancurkan bukti demi menjaga stabilitas & persatuan rakyat", "rep": 2, "result": "Kamu menghancurkan stempel itu. Mungkin sebagian kebenaran lebih baik terkubur demi kedamaian."}, {"label": "Serap sisa mana gelap dari stempel untuk kekuatan pribadi", "rep": -6, "stat": ["CRS", 2], "result": "Energi gelap merasuk ke dalam nadimu. Kamu merasa lebih kuat... namun juga lebih dingin."}]]], "2": [["kael_truth", "👻 KEBENARAN KAELEN\n'Kami dikorbankan agar para bangsawan bisa melarikan diri saat gerhana...' Arwah Kaelen menunduk hormat."], ["ancient_mural_1", "📜 MURAL I: KEBANGKITAN PERTAMA\nUkiran menggambarkan manusia dan naga pernah bertarung bahu membahu melawan monster Void."], ["harpy_nest_secret", "🪶 RAHASIA SARANG HARPY\nDi antara tumpukan bulu, kamu menemukan telur harpy yang masih hidup, ditinggalkan sang induk yang gugur.\nSuara cicitan lemah terdengar dari dalamnya."], ["golem_core_memory", "🗿 INGATAN INTI GOLEM\nSaat menyentuh sisa inti golem yang hancur, kilasan memori terlihat: para tetua pertama menciptakannya\nbukan untuk menyerang, melainkan untuk melindungi segel dari tangan-tangan tamak."], ["arcana_tome_choice", "📘 KITAB ARKANA TERLARANG\nSebuah kitab bersampul kulit gelap tergeletak di reruntuhan menara, memancarkan hawa dingin.\nDi dalamnya tertulis mantra terlarang yang mampu memanipulasi jiwa musuh.", [{"label": "Pelajari mantra terlarang demi kekuatan lebih besar", "rep": -5, "stat": ["INT", 2], "result": "Pengetahuan gelap mengalir ke dalam pikiranmu. Kekuatanmu bertambah, tapi jiwamu terasa sedikit lebih berat."}, {"label": "Serahkan kitab pada roh penjaga hutan agar dimusnahkan", "rep": 6, "stat": ["CHA", 2], "result": "Roh hutan berterima kasih atas kebijaksanaanmu. Cahaya hangat menyelimuti tubuhmu sesaat."}]]], "3": [["malakor_memory", "⚔️ MEMORI MALAKOR\nSebuah visi memperlihatkan panglima Malakor meminum darah naga demi menyelamatkan pasukannya dari kepunahan."], ["seal_fragment_2", "🔷 PECAHAN SEGEL II\nPecahan kristal kedua menyatu dengan yang pertama, memancarkan aura perlindungan ilahi!"], ["malakor_betrayal_detail", "🗡️ RINCIAN PENGKHIANATAN\nUkiran dinding kuil mengungkap nama sang pengkhianat yang menjatuhkan Malakor: sahabat karibnya sendiri,\nseorang penasihat yang kini duduk tenang di Dewan Tetua Eldoria."], ["drake_pyrath_lore", "🔥 LEGENDA DRAKE PYRATH\nPenduduk kawah dahulu percaya Pyrath adalah penjaga api suci sebelum korupsi Abyss membutakan pikirannya\nmenjadi monster haus darah yang kini menjaga kawah dengan amarah membara."], ["cursed_blade_choice", "🗡️ BILAH TERKUTUK MALAKOR\nSebilah pedang hitam tertancap di reruntuhan altar, berbisik pelan menawarkan kekuatan tak terbatas\nkepada siapa pun yang berani menggenggamnya.", [{"label": "Genggam bilah itu dan rasakan kekuatannya", "rep": -6, "stat": ["STR", 2], "result": "Kekuatan gelap mengalir deras ke lenganmu. Otot-ototmu terasa jauh lebih kuat dari sebelumnya."}, {"label": "Hancurkan bilah itu agar tak menjerat korban lain", "rep": 7, "result": "Bilah itu pecah berkeping-keping disertai jeritan yang lenyap ditelan angin. Kamu merasa lega."}]]], "4": [["elara_whisper", "🌙 BISIKAN ELARA\n'Ignis bukan musuh sejati. Jika Ignis mati tanpa segel diperbaiki, Abyss akan menelan benua dalam hitungan menit.'"], ["ancient_mural_2", "📜 MURAL II: HAKIKAT ABYSS\nTulisan kuno menegaskan: 'Ignis adalah kunci gembok penjara, bukan tahanannya.'"], ["vespera_fall", "🖤 KEJATUHAN VESPERA\nSebuah cermin retak menampilkan visi Ratu Vespera muda, dulu seorang penyihir istana yang dikhianati\nkekasihnya sendiri sebelum ia membelot dan menyatu dengan kegelapan Abyss."], ["abyss_whisper_lore", "🌑 BISIKAN ABYSS\nSuara tanpa wujud berbisik: 'Kami bukan penjajah... kami adalah tahanan yang mencoba pulang.'\nKamu tak yakin harus mempercayainya atau tidak."], ["wyrm_ancient_lore", "🐉 LEGENDA WYRM JURANG PURBA\nCatatan kuno menyebut Wyrm ini pernah menjadi penjaga terakhir sebelum Segel Tujuh Bintang diciptakan,\nkini ia hanya mengenal insting lapar tanpa akhir."], ["dark_whisper_choice", "🌀 BISIKAN KEGELAPAN JURANG\nSuara-suara di kegelapan menawarkan pengetahuan terlarang tentang cara menaklukkan Abyss dari dalam,\ndengan syarat kamu membiarkan sedikit kegelapan itu bersemayam dalam dirimu.", [{"label": "Dengarkan bisikan itu dan serap pengetahuannya", "rep": -7, "stat": ["CRS", 3], "result": "Bisikan itu merasuk ke dalam jiwamu. Kamu kini memahami Abyss lebih dari siapa pun... dengan risikonya sendiri."}, {"label": "Tutup telingamu rapat-rapat dan terus melangkah", "rep": 5, "stat": ["CHA", 2], "result": "Kamu menolak godaan itu. Tekadmu yang teguh membuat hatimu terasa lebih ringan."}]]], "5": [["final_revelation", "🌌 WAHYU TERAKHIR\nSeluruh sejarah Eldoria terbentang di depan matamu. Nasib jutaan jiwa kini berada di ujung pedangmu."], ["ignis_true_nature", "🔥 HAKIKAT SEJATI IGNIS\nCatatan terakhir Elara mengungkap kebenaran penuh: Ignis adalah naga pertama yang rela dirantai\nselamanya agar seluruh Abyss tak pernah bisa menembus dunia manusia."], ["throne_final_choice_lore", "👑 BISIKAN SINGGASANA KOSONG\nSaat kamu mendekati singgasana terakhir, sebuah suara dalam kepalamu bertanya pelan:\n'Setelah semua yang kau lihat... akankah kau menjadi penjaga, atau penguasa baru?'"], ["elara_prayer_choice", "🕯️ DOA TERAKHIR ELARA YANG BELUM SELESAI\nDi ruang meditasinya, kamu menemukan gulungan doa Elara yang terhenti di tengah kalimat—\nseakan ia dipanggil mendadak untuk bertarung sebelum sempat menyelesaikannya.", [{"label": "Selesaikan doa itu atas namanya", "rep": 8, "flag": "completed_elara_prayer", "result": "Kamu menuliskan kalimat terakhir dengan hati-hati. Cahaya lembut sesaat memenuhi ruangan, seolah berterima kasih."}, {"label": "Biarkan doa itu tetap tak selesai, itu bukan urusanmu", "rep": -2, "result": "Kamu memilih untuk tidak ikut campur. Ruangan itu kembali sunyi seperti semula."}]]]}, "GUARANTEED_STORY_FLOORS": {"3": "kael_intro", "7": "seal_fragment_1", "13": "kael_truth", "23": "seal_fragment_2", "33": "elara_whisper", "43": "final_revelation", "47": "ignis_true_nature"}, "MAX_FLOORS": 50, "MAX_ACTIVE_SKILLS": 3, "LEGENDARY_LOOT": {"1": {"weapon": {"name": "🌟 Pedang Roh Penjaga Gerbang (Legendaris)", "atk": 42, "price": 900, "lore": "Ditempa dari sisa jiwa prajurit pertama Eldoria yang gugur menjaga gerbang."}, "armor": {"name": "🌟 Zirah Kulit Naga Muda Tersembunyi (Legendaris)", "def": 24, "hp": 110, "price": 900, "lore": "Zirah rahasia yang disembunyikan jauh di bawah reruntuhan gerbang."}, "skill": {"name": "🌟 Amukan Inti Kristal Slime (Legendaris)", "cost": 13, "dmg": 55, "heal": 25, "sell_price": 900}}, "2": {"weapon": {"name": "🌟 Belati Kembar Ratu Badai (Legendaris)", "atk": 80, "price": 2400, "lore": "Sepasang belati yang dulunya cakar Ratu Harpy Nyxandra sendiri."}, "armor": {"name": "🌟 Jubah Arkana Segel Kedua (Legendaris)", "def": 52, "hp": 220, "mp": 60, "price": 2400, "lore": "Jubah tenunan energi arkana murni dari menara terlupakan."}, "skill": {"name": "🌟 Badai Bulu Nyxandra (Legendaris)", "cost": 18, "dmg": 92, "lifesteal": 0.2, "sell_price": 2400}}, "3": {"weapon": {"name": "🌟 Tombak Pembunuh Naga Pyrath (Legendaris)", "atk": 148, "price": 6500, "lore": "Tombak yang menembus sisik Drake Vulkanik Pyrath sendiri."}, "armor": {"name": "🌟 Zirah Sisik Malakor Membara (Legendaris)", "def": 118, "hp": 520, "price": 6500, "lore": "Ditempa dari sisa zirah panglima terkutuk Malakor."}, "skill": {"name": "🌟 Letusan Kuil Vulkanik (Legendaris)", "cost": 26, "dmg": 165, "poison_turns": 4, "poison_dmg": 30, "sell_price": 6500}}, "4": {"weapon": {"name": "🌟 Bilah Jiwa Terkutuk Malakor (Legendaris)", "atk": 265, "price": 16000, "lore": "Bilah hitam legam yang meminum jiwa siapa pun yang ia lukai."}, "armor": {"name": "🌟 Jubah Malam Tanpa Bintang Vespera (Legendaris)", "def": 200, "hp": 950, "mp": 150, "price": 16000, "lore": "Jubah Ratu Kegelapan yang menyatu dengan bayangan Abyss."}, "skill": {"name": "🌟 Panggilan Wyrm Jurang Dalam (Legendaris)", "cost": 40, "dmg": 285, "lifesteal": 0.35, "sell_price": 16000}}, "5": {"weapon": {"name": "🌟 Taring Wyrm Penghancur Dimensi (Legendaris)", "atk": 430, "price": 40000, "lore": "Sepotong taring yang mampu merobek celah antar dimensi sekali tebas."}, "armor": {"name": "🌟 Cincin Bintang Fajar Eldoria (Legendaris)", "def": 310, "hp": 2000, "mp": 400, "price": 40000, "lore": "Relik terakhir Penjaga Segel Elara, memancarkan cahaya fajar abadi."}, "skill": {"name": "🌟 Jantung Purba Ignis (Legendaris)", "cost": 60, "dmg": 460, "heal": 200, "sell_price": 40000}}}}
+</script>
+<script>
+"use strict";
+/* ============================================================
+   ELDORIA RPG — port JavaScript dari eldo.py
+   ============================================================ */
+const DATA = JSON.parse(document.getElementById('gamedata').textContent);
+const RACES = DATA.RACES, RACE_LORE = DATA.RACE_LORE, BASE_CLASSES = DATA.BASE_CLASSES,
+      CLASS_LORE = DATA.CLASS_LORE, CLASS_PROMOTIONS = DATA.CLASS_PROMOTIONS, ZONES = DATA.ZONES,
+      BOSS_DATA = DATA.BOSS_DATA, ZONE_ENEMIES = DATA.ZONE_ENEMIES, WEAPONS_TIER = DATA.WEAPONS_TIER,
+      ARMORS_TIER = DATA.ARMORS_TIER, SKILL_SCROLLS_TIER = DATA.SKILL_SCROLLS_TIER,
+      LOOT_SELL_VALUE = DATA.LOOT_SELL_VALUE, CRAFT_RECIPES = DATA.CRAFT_RECIPES,
+      LEGENDARY_LOOT = DATA.LEGENDARY_LOOT,
+      STORY_DATA = DATA.STORY_DATA, STORY_EVENTS = DATA.STORY_EVENTS,
+      GUARANTEED_STORY_FLOORS = DATA.GUARANTEED_STORY_FLOORS, MAX_FLOORS = DATA.MAX_FLOORS,
+      MAX_ACTIVE_SKILLS = DATA.MAX_ACTIVE_SKILLS, PROLOGUE_STORY = DATA.PROLOGUE_STORY;
+
+const EXPLORES_PER_FLOOR = 30;
+
+/* ============================================================
+   MODE NERAKA — DUNGEON VS SARANG MONSTER
+   ------------------------------------------------------------
+   Sarang Monster = tempat grinding. Musuh Elite lebih ringan
+   daripada penghuni koridor Dungeon Neraka.
+
+   Dungeon Neraka = konten utama yang JAUH lebih brutal.
+   Pemain wajib mengumpulkan "Persiapan Abyss" dari grinding
+   Sarang Monster sebelum dapat menjelajah setiap lantai baru.
+   ============================================================ */
+const HELL_DEN_ELITE_MULT = 1.55;
+const HELL_DUNGEON_MULT = { hp: 3.0, atk: 2.35, def: 2.2, exp: 2.1, gold: 1.9 };
+const HELL_BOSS_MULT  = { hp: 2.1,  atk: 1.65, def: 1.55, exp: 1.8, gold: 1.6 };
+
+/* Rekomendasi grinding — BUKAN syarat masuk.
+   Angka ini hanya dipakai untuk memberi pemain gambaran apakah
+   persiapan mereka cukup untuk menghadapi lantai tersebut. */
+function getHellGrindRequirement(floor) {
+  return 3 + Math.floor((Math.max(1, floor) - 1) / 5);
+}
+
+const INITIAL_WEAPONS = {
+  "1": {name: "Pedang Baja Tempa", atk: 10, price: 30, lore: "Pedang standar ksatria Eldoria."},
+  "2": {name: "Tongkat Kayu Kuno", atk: 8, price: 30, lore: "Menghantarkan energi mana alami."},
+  "3": {name: "Belati Kembar Pemburu", atk: 11, price: 30, lore: "Ringan dan sangat cepat."},
+  "4": {name: "Palu Perang Suci", atk: 12, price: 30, lore: "Palu besi pelindung kaum suci."},
+  "5": {name: "Busur Kayu Elm", atk: 10, price: 30, lore: "Busur jarak jauh berkecepatan tinggi."},
+  "6": {name: "Tongkat Tulang Terkutuk", atk: 9, price: 30, lore: "Memancarkan aura kegelapan halus."},
+};
+
+/* ---------------- util ---------------- */
+function ri(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+function rf() { return Math.random(); }
+function choiceArr(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function nl2br(s) { return esc(s).replace(/\n/g, "<br>"); }
+function fmtSigned(n) { return (n >= 0 ? "+" : "") + n; }
+
+/* ---------------- Player ---------------- */
+class Player {
+  constructor(name, raceKey, classKey, weaponInfo, bonus, difficulty) {
+    this.name = name;
+    this.race_key = raceKey;
+    this.race_info = RACES[raceKey];
+    this.race_name = this.race_info.name;
+    this.base_class_info = BASE_CLASSES[classKey];
+    this.class_name = this.base_class_info.name;
+    this.tier = 1;
+    this.difficulty = difficulty || 'normal';
+    bonus = bonus || {};
+    this.STR = 5 + (this.race_info.str || 0) + (this.base_class_info.str || 0) + (bonus.str || 0);
+    this.INT = 5 + (this.race_info.int || 0) + (this.base_class_info.int || 0) + (bonus.int || 0);
+    this.CHA = 5 + (this.race_info.cha || 0) + (this.base_class_info.cha || 0) + (bonus.cha || 0);
+    this.SPD = 5 + (this.race_info.spd || 0) + (this.base_class_info.spd || 0) + (bonus.spd || 0);
+    this.DEX = 5 + (this.race_info.dex || 0) + (this.base_class_info.dex || 0) + (bonus.dex || 0);
+    this.CRS = 0 + (this.race_info.crs || 0) + (this.base_class_info.crs || 0) + (bonus.crs || 0);
+
+    this.level = 1;
+    this.exp = 0;
+    this.exp_needed = 60;
+    this.gold = 100;
+
+    this.equipped_weapon = Object.assign({}, weaponInfo);
+    this.weapon_upgrade = 0;
+    this.equipped_armor = { name: "Zirah Kulit Pemula", def: 4, hp: 20 };
+    this.armor_upgrade = 0;
+
+    this.base_max_hp = 120 + this.race_info.hp + this.base_class_info.hp;
+    this.max_hp = this.base_max_hp + (this.equipped_armor.hp || 0);
+    this.hp = this.max_hp;
+
+    this.base_max_mp = 40 + this.race_info.mp + this.base_class_info.mp;
+    this.max_mp = this.base_max_mp;
+    this.mp = this.max_mp;
+
+    this.base_atk = 12 + this.race_info.atk + this.base_class_info.atk;
+    this.base_def = 2 + (this.race_info.def || 0) + (this.base_class_info.def || 0);
+
+    const initialSkill = {
+      name: this.base_class_info.skill_name, cost: this.base_class_info.skill_cost,
+      dmg: this.base_class_info.skill_dmg, heal: this.base_class_info.skill_heal || 0,
+      lifesteal: this.base_class_info.skill_lifesteal || 0,
+      poison_turns: this.base_class_info.skill_poison_turns || 0,
+      poison_dmg: this.base_class_info.skill_poison_dmg || 0,
+    };
+    this.learned_skills = [initialSkill];
+    this.active_skills = [Object.assign({}, initialSkill)];
+
+    this.poison_turns = 0;
+    this.poison_dmg = 0;
+
+    this.potions = 4;
+    this.mana_potions = 3;
+    this.elixirs = 1;
+    this.inventory = [];
+    this.weapon_loot = [];
+    this.armor_loot = [];
+    this.skill_loot = [];
+
+    this.reputation = 0;
+    this.story_flags = [];
+    this.quest_flags = [];
+    this.bosses_defeated = [];
+    this.current_floor = 1;
+    this.explore_count = 0;
+
+    /* Mode Neraka: resource hasil grinding untuk mempersiapkan
+       diri sebelum memasuki koridor Dungeon Neraka. */
+    this.hell_grind = 0;
+    this.hell_prepared_floor = 0;
+  }
+
+  get atk() {
+    const wAtk = (this.equipped_weapon.atk || 0) + this.weapon_upgrade * 6;
+    return this.base_atk + wAtk + Math.floor(this.STR / 2);
+  }
+  get defense() {
+    const aDef = (this.equipped_armor.def || 0) + this.armor_upgrade * 5;
+    let total = this.base_def + aDef;
+    if (this.race_info.def_bonus) total = Math.floor(total * (1 + this.race_info.def_bonus));
+    return total;
+  }
+  get crit_rate() { return (this.race_info.crit || 5) + Math.floor(this.level / 4) + Math.floor(this.DEX / 4); }
+  get evasion_rate() { return (this.race_info.evasion || 5) + Math.floor(this.SPD / 5); }
+  get shop_discount() { return Math.min(0.30, this.CHA * 0.01); }
+  get isHell() { return this.difficulty === 'hell'; }
+  get weapon_name() { return this.equipped_weapon.name + (this.weapon_upgrade > 0 ? ` +${this.weapon_upgrade}` : ""); }
+  get armor_name() { return this.equipped_armor.name + (this.armor_upgrade > 0 ? ` +${this.armor_upgrade}` : ""); }
+
+  statLine() {
+    return `🎯 STR:${this.STR}  🧠 INT:${this.INT}  💬 CHA:${this.CHA}  🌀 SPD:${this.SPD}  🏹 DEX:${this.DEX}  🩸 CRS:${this.CRS}`;
+  }
+  recalcHpMp() {
+    this.max_hp = this.base_max_hp + (this.equipped_armor.hp || 0);
+    this.max_mp = this.base_max_mp + (this.equipped_armor.mp || 0);
+    this.hp = Math.min(this.hp, this.max_hp);
+    this.mp = Math.min(this.mp, this.max_mp);
+  }
+  equipWeapon(w) {
+    if (this.equipped_weapon) this.weapon_loot.push(this.equipped_weapon);
+    this.equipped_weapon = Object.assign({}, w);
+    this.weapon_upgrade = 0;
+  }
+  equipArmor(a) {
+    if (this.equipped_armor && this.equipped_armor.name !== "Tanpa Zirah") this.armor_loot.push(this.equipped_armor);
+    this.equipped_armor = Object.assign({}, a);
+    this.armor_upgrade = 0;
+    this.recalcHpMp();
+  }
+  gainExp(amount) {
+    if (this.race_info.exp_bonus) amount = Math.floor(amount * (1 + this.race_info.exp_bonus));
+    this.exp += amount;
+    const events = [];
+    while (this.exp >= this.exp_needed) events.push(this.levelUp());
+    return { amount, events };
+  }
+  levelUp() {
+    this.level += 1;
+    this.exp -= this.exp_needed;
+    this.exp_needed = Math.floor(this.exp_needed * 1.45) + 20;
+
+    const hp_gain = 35 + this.tier * 10, mp_gain = 18 + this.tier * 5,
+          atk_gain = 8 + this.tier * 2, def_gain = 3 + this.tier;
+    const str_gain = 1 + Math.floor(((this.race_info.str || 0) + (this.base_class_info.str || 0)) / 6);
+    const int_gain = 1 + Math.floor(((this.race_info.int || 0) + (this.base_class_info.int || 0)) / 6);
+    const cha_gain = 1 + Math.floor(((this.race_info.cha || 0) + (this.base_class_info.cha || 0)) / 6);
+    const spd_gain = 1 + Math.floor(((this.race_info.spd || 0) + (this.base_class_info.spd || 0)) / 6);
+    const dex_gain = 1 + Math.floor(((this.race_info.dex || 0) + (this.base_class_info.dex || 0)) / 6);
+    const crs_gain = Math.floor(((this.race_info.crs || 0) + (this.base_class_info.crs || 0)) / 5);
+
+    this.base_max_hp += hp_gain; this.base_max_mp += mp_gain;
+    this.base_atk += atk_gain; this.base_def += def_gain;
+    this.STR += str_gain; this.INT += int_gain; this.CHA += cha_gain;
+    this.SPD += spd_gain; this.DEX += dex_gain; this.CRS += crs_gain;
+    this.recalcHpMp();
+    this.hp = this.max_hp; this.mp = this.max_mp;
+
+    return { level: this.level, hp_gain, mp_gain, atk_gain, def_gain, str_gain, int_gain, cha_gain, spd_gain, dex_gain, crs_gain };
+  }
+}
+
+/* ---------------- Enemy ---------------- */
+function makeEnemy(name, hp, atk, def_, expReward, goldReward, lootDrop, isBoss) {
+  return {
+    name, max_hp: hp, hp, atk, defense: def_, exp_reward: expReward, gold_reward: goldReward,
+    loot_drop: lootDrop || null, is_boss: !!isBoss, enraged: false, poison_turns: 0, poison_dmg: 0,
+  };
+}
+
+function getZoneInfo(floor) {
+  for (const z of ZONES) if (z.floors[0] <= floor && floor <= z.floors[1]) return z;
+  return ZONES[ZONES.length - 1];
+}
+
+function getEnemyForFloor(floor, player) {
+  const zone = getZoneInfo(floor);
+  const monsters = ZONE_ENEMIES[zone.id] || ZONE_ENEMIES[1];
+  const [name, hp, atk, defVal, expR, goldR, loot] = choiceArr(monsters);
+  // Skala berkelanjutan berdasarkan posisi lantai di dalam zona (dulu memakai floor%10
+  // yang reset tiap 10 lantai & membuat musuh di ujung zona jadi TERLEMAH, bukan terkuat).
+  const posInZone = floor - zone.floors[0];
+  const floorMod = 1 + (posInZone * 0.14);
+  const hm = (player && player.isHell) ? HELL_DUNGEON_MULT : null;
+  const finalHp = Math.floor(hp * floorMod * (hm ? hm.hp : 1));
+  const finalAtk = Math.floor(atk * floorMod * (hm ? hm.atk : 1));
+  const finalDef = Math.floor(defVal * floorMod * (hm ? hm.def : 1));
+  const finalExp = Math.floor(expR * (hm ? hm.exp : 1));
+  const finalGold = Math.floor(goldR * (hm ? hm.gold : 1));
+  const finalName = hm ? `${name} (Neraka)` : name;
+  return makeEnemy(finalName, finalHp, finalAtk, finalDef, finalExp, finalGold, loot, false);
+}
+
+/* Boss lantai: pakai BOSS_DATA jika lantai itu sudah punya boss cerita,
+   kalau tidak, generate boss dari musuh zona yang di-scale up jadi versi "penguasa lantai". */
+function getFloorBoss(floor, player) {
+  const hm = (player && player.isHell) ? HELL_BOSS_MULT : null;
+
+  const scripted = BOSS_DATA[floor];
+  if (scripted) {
+    const b = Object.assign({ generated: false }, scripted);
+    if (hm) {
+      b.hp = Math.floor(b.hp * hm.hp);
+      b.atk = Math.floor(b.atk * hm.atk);
+      b.def = Math.floor(b.def * hm.def);
+      b.exp = Math.floor(b.exp * hm.exp);
+      b.gold = Math.floor(b.gold * hm.gold);
+      b.name = `${b.name} 🔥[Neraka]`;
+    }
+    return b;
+  }
+
+  const zone = getZoneInfo(floor);
+  const monsters = ZONE_ENEMIES[zone.id] || ZONE_ENEMIES[1];
+  const [baseName, hp, atk, defVal, expR, goldR, loot] = choiceArr(monsters);
+  // Dulu boss hanya sedikit lebih kuat dari musuh biasa (mudah dikalahkan 2-3 hit).
+  // Sekarang pengganda dasar jauh lebih tinggi + skala per-lantai lebih curam,
+  // supaya boss lantai benar-benar terasa seperti "penguasa lantai".
+  const floorMod = 1 + (floor * 0.07);
+  const name = `Boss Lantai ${floor}: ${baseName} Sang Penguasa${hm ? ' 🔥[Neraka]' : ''}`;
+  return {
+    generated: true,
+    name,
+    hp: Math.floor(hp * 6.8 * floorMod * (hm ? hm.hp : 1)),
+    atk: Math.floor(atk * 2.9 * floorMod * (hm ? hm.atk : 1)),
+    def: Math.floor(defVal * 2.4 * floorMod * (hm ? hm.def : 1)),
+    exp: Math.floor(expR * 4.2 * floorMod * (hm ? hm.exp : 1)),
+    gold: Math.floor(goldR * 3.8 * floorMod * (hm ? hm.gold : 1)),
+    loot: loot,
+    intro: `👹 ${baseName} raksasa yang telah menyerap kekuatan gelap lantai ${floor} bangkit menghadangmu!`,
+    lore: `Penguasa sementara lantai ${floor}, hasil mutasi ${baseName} yang menyerap sisa energi Abyss di kedalaman ini.`,
+  };
+}
+
+function learnSkill(player, skill) {
+  if (!player.learned_skills.some(s => s.name === skill.name)) {
+    player.learned_skills.push(Object.assign({}, skill));
+    if (player.active_skills.length < MAX_ACTIVE_SKILLS) player.active_skills.push(Object.assign({}, skill));
+    return true;
+  }
+  return false;
+}
+
+/* ============================================================
+   UI HELPERS
+   ============================================================ */
+const screenEl = document.getElementById('screen');
+const hudEl = document.getElementById('hud');
+
+function render(html) {
+  screenEl.innerHTML = html;
+  screenEl.scrollTop = 0;
+  window.scrollTo(0, 0);
+}
+function appendEl(el) { screenEl.appendChild(el); }
+
+function choose(options) {
+  return new Promise(resolve => {
+    const wrap = document.createElement('div');
+    wrap.className = 'btnrow';
+    options.forEach(o => {
+      const b = document.createElement('button');
+      b.className = 'btn' + (o.cls ? (' ' + o.cls) : '');
+      b.innerHTML = o.label;
+      if (o.disabled) { b.disabled = true; }
+      else b.onclick = () => { wrap.remove(); resolve(o.value); };
+      wrap.appendChild(b);
+    });
+    appendEl(wrap);
+  });
+}
+
+function askText(placeholder, defaultVal) {
+  return new Promise(resolve => {
+    const wrap = document.createElement('div');
+    wrap.className = 'inputrow';
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.placeholder = placeholder || '';
+    inp.value = defaultVal || '';
+    inp.className = 'textinput';
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.textContent = 'OK ➜';
+    const submit = () => { wrap.remove(); resolve(inp.value); };
+    btn.onclick = submit;
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+    wrap.appendChild(inp);
+    wrap.appendChild(btn);
+    appendEl(wrap);
+    setTimeout(() => inp.focus(), 30);
+  });
+}
+
+function askNumber(min, max, defaultVal) {
+  return new Promise(resolve => {
+    const wrap = document.createElement('div');
+    wrap.className = 'inputrow';
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.min = min; inp.max = max;
+    inp.value = defaultVal != null ? defaultVal : min;
+    inp.className = 'textinput numinput';
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.textContent = 'OK ➜';
+    const err = document.createElement('div');
+    err.className = 'errtext';
+    const submit = () => {
+      const v = parseInt(inp.value, 10);
+      if (isNaN(v) || v < min || v > max) { err.textContent = `⚠️ Masukkan angka ${min}-${max}!`; return; }
+      wrap.remove(); resolve(v);
+    };
+    btn.onclick = submit;
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+    wrap.appendChild(inp);
+    wrap.appendChild(btn);
+    wrap.appendChild(err);
+    appendEl(wrap);
+    setTimeout(() => inp.focus(), 30);
+  });
+}
+
+function continueBtn(label) {
+  return choose([{ label: label || 'Lanjutkan ➜', value: true, cls: 'primary' }]);
+}
+
+function updateHud(player) {
+  if (!player) { hudEl.innerHTML = ''; hudEl.classList.add('hidden'); return; }
+  hudEl.classList.remove('hidden');
+  const hpPct = Math.max(0, Math.min(100, Math.round((player.hp / player.max_hp) * 100)));
+  const mpPct = Math.max(0, Math.min(100, Math.round((player.mp / player.max_mp) * 100)));
+  hudEl.innerHTML = `
+    <div class="hud-row">
+      <span class="hud-name">${esc(player.name)}${player.isHell ? ' <span style="color:var(--red);font-size:0.75rem;">🔥NERAKA</span>' : ''}</span>
+      <span class="hud-tag">Lv.${player.level} ${esc(player.race_name)} ${esc(player.class_name)} (T${player.tier})</span>
+      <span class="hud-gold">💰 ${player.gold}G</span>
+    </div>
+    <div class="bar"><div class="bar-fill hp" style="width:${hpPct}%"></div><span class="bar-label">💖 ${player.hp}/${player.max_hp}</span></div>
+    <div class="bar"><div class="bar-fill mp" style="width:${mpPct}%"></div><span class="bar-label">🔷 ${player.mp}/${player.max_mp}</span></div>
+    ${player.isHell ? `
+      <div class="hud-row" style="margin-top:7px;margin-bottom:0;">
+        <span class="hud-tag">🩸 Persiapan Abyss</span>
+        <span class="hud-gold">${player.hell_grind}/${getHellGrindRequirement(player.current_floor)} poin ${player.hell_prepared_floor === player.current_floor ? '✅ SIAP' : '⚠️ BELUM SIAP'}</span>
+      </div>` : ''}
+  `;
+}
+
+function box(title, bodyHtml) {
+  return `<div class="panel">${title ? `<h2>${title}</h2>` : ''}${bodyHtml}</div>`;
+}
+function divider() { return `<hr class="sep">`; }
+
+/* ============================================================
+   PROMOSI KELAS
+   ============================================================ */
+async function checkAndPromoteClass(player) {
+  const options = CLASS_PROMOTIONS[player.class_name] || [];
+  const validOptions = options.filter(o => player.level >= o.req_level);
+  if (validOptions.length === 0) return false;
+
+  let body = `<p>Pahlawan <b>${esc(player.name)}</b> telah mencapai Level ${player.level}!</p>
+  <p>Pilihlah cabang jalan evolusi takdirmu:</p>${divider()}`;
+  validOptions.forEach((opt, i) => {
+    const bonusParts = [];
+    if (opt.hp) bonusParts.push(`+${opt.hp} HP`);
+    if (opt.mp) bonusParts.push(`+${opt.mp} MP`);
+    if (opt.atk) bonusParts.push(`+${opt.atk} ATK`);
+    if (opt.def) bonusParts.push(`+${opt.def} DEF`);
+    body += `<div class="card">
+      <div class="card-title">🏆 ${esc(opt.name)}</div>
+      <div class="card-desc">📜 ${esc(opt.lore || '')}</div>
+      <div class="card-stat">📈 Bonus Stat: ${bonusParts.join(', ')}</div>
+      <div class="card-stat">✨ Skill Baru: ${esc(opt.skill_name)} (${opt.skill_cost} MP, +${opt.skill_dmg} DMG)</div>
+    </div>`;
+  });
+  render(box('🌟🌟 EVOLUSI KELAS TINGKAT TINGGI 🌟🌟', body));
+  const idx = await choose(validOptions.map((o, i) => ({ label: `Pilih ${esc(o.name)}`, value: i, cls: 'primary' })));
+  const chosen = validOptions[idx];
+
+  player.class_name = chosen.name;
+  applyClassTheme(player.class_name);
+  player.tier += 1;
+  player.base_max_hp += chosen.hp || 0;
+  player.base_max_mp += chosen.mp || 0;
+  player.base_atk += chosen.atk || 0;
+  player.base_def += chosen.def || 0;
+
+  const promoBonus = 3 * player.tier;
+  player.STR += promoBonus; player.INT += promoBonus; player.CHA += promoBonus;
+  player.SPD += promoBonus; player.DEX += promoBonus; player.CRS += Math.floor(promoBonus / 2);
+
+  player.recalcHpMp();
+  player.hp = player.max_hp; player.mp = player.max_mp;
+
+  const newSkill = {
+    name: chosen.skill_name, cost: chosen.skill_cost, dmg: chosen.skill_dmg,
+    heal: chosen.skill_heal || 0, lifesteal: chosen.skill_lifesteal || 0,
+    poison_turns: chosen.skill_poison_turns || 0, poison_dmg: chosen.skill_poison_dmg || 0,
+  };
+  learnSkill(player, newSkill);
+
+  render(box('🎉 EVOLUSI BERHASIL!', `
+    <p>Kamu telah berevolusi menjadi: <b>${esc(chosen.name)}</b>!</p>
+    <p>✨ Mempelajari jurus pamungkas: [${esc(chosen.skill_name)}]!</p>
+    <p>📈 Semua stat tambahan meningkat +${promoBonus} (CRS +${Math.floor(promoBonus / 2)})!</p>
+    <p>💖 Status tempur diperkuat secara permanen!</p>
+  `));
+  updateHud(player);
+  await continueBtn('Lanjutkan petualangan ➜');
+  return true;
+}
+
+/* ============================================================
+   SISTEM PERTEMPURAN
+   ============================================================ */
+async function chooseSkillForBattle(player) {
+  let body = '';
+  const opts = player.active_skills.map((sk, idx) => {
+    let cost = sk.cost;
+    if (player.race_info.mp_cost_reduce) cost = Math.max(1, Math.floor(cost * (1 - player.race_info.mp_cost_reduce)));
+    const label = `${esc(sk.name)} (${cost} MP) → +${sk.dmg || 0} DMG${sk.heal ? ` | Heal ${sk.heal}` : ''}${sk.lifesteal ? ` | Lifesteal ${Math.round(sk.lifesteal*100)}%` : ''}${sk.poison_turns ? ` | Racun ${sk.poison_dmg}/turn` : ''}`;
+    return { label, value: idx };
+  });
+  opts.push({ label: 'Batal', value: -1, cls: 'danger' });
+  render(box('🪄 PILIH SKILL AKTIF', body || '<p>Pilih jurus yang ingin digunakan:</p>'));
+  const idx = await choose(opts);
+  if (idx === -1) return null;
+  return player.active_skills[idx];
+}
+
+function renderBattleScreen(player, enemy, floor, msg) {
+  let html = `<div class="battle-title">🏰 LANTAI ${floor}/${MAX_FLOORS} ⚔️ ${esc(player.name)} [${esc(player.class_name)}] vs ${esc(enemy.name)}</div>${divider()}`;
+  const hpPct = Math.max(0, Math.round((player.hp / player.max_hp) * 100));
+  const mpPct = Math.max(0, Math.round((player.mp / player.max_mp) * 100));
+  const ehpPct = Math.max(0, Math.round((enemy.hp / enemy.max_hp) * 100));
+  html += `<div class="bar"><div class="bar-fill hp" style="width:${hpPct}%"></div><span class="bar-label">👤 HP: ${player.hp}/${player.max_hp}</span></div>`;
+  html += `<div class="bar"><div class="bar-fill mp" style="width:${mpPct}%"></div><span class="bar-label">🔷 MP: ${player.mp}/${player.max_mp} | 🛡️ DEF: ${player.defense}</span></div>`;
+  html += `<p class="statline">${player.statLine()}</p>`;
+  html += `<div class="bar enemy"><div class="bar-fill enemy-hp" style="width:${ehpPct}%"></div><span class="bar-label">👹 ${esc(enemy.name)} HP: ${enemy.hp}/${enemy.max_hp}</span></div>`;
+  if (player.poison_turns > 0) html += `<p class="poison">☠️ Kamu keracunan! (${player.poison_turns} turn | -${player.poison_dmg} HP/turn)</p>`;
+  if (enemy.poison_turns > 0) html += `<p class="poison">☠️ ${esc(enemy.name)} keracunan! (${enemy.poison_turns} turn | -${enemy.poison_dmg} HP/turn)</p>`;
+  html += divider();
+  if (msg) html += `<p class="logmsg">${nl2br(msg)}</p>${divider()}`;
+  render(box(null, html));
+}
+
+async function battle(player, enemy, floor) {
+  let msg = `⚠️ Musuh muncul: ${enemy.name}!`;
+  if (enemy.is_boss) {
+    render(box('🔥 PERTEMPURAN BOSS 🔥', `
+      <div class="boss-warn">🚨 PERTEMPURAN BOSS LANTAI ${floor} 🚨</div>
+      <div class="boss-name">${esc(enemy.name.toUpperCase())}</div>
+    `));
+    await continueBtn('Mulai Pertempuran! ⚔️');
+  }
+
+  while (player.hp > 0 && enemy.hp > 0) {
+    renderBattleScreen(player, enemy, floor, msg);
+    const actions = [
+      { label: '⚔️ Serangan Fisik', value: '1' },
+      { label: '🪄 Skill Khusus', value: '2' },
+      { label: `💖 Potion HP (${player.potions})`, value: '3' },
+      { label: `🔷 Potion MP (${player.mana_potions})`, value: '4' },
+      { label: `🌟 Elixir (${player.elixirs})`, value: '5' },
+      { label: '🏃 Coba Kabur', value: '6', cls: 'danger' },
+    ];
+    const action = await choose(actions);
+    let skipPost = false;
+
+    if (action === '1') {
+      const isCrit = ri(1, 100) <= player.crit_rate;
+      const mult = isCrit ? 1.75 : 1.0;
+      const curseBonus = Math.floor(player.CRS / 3);
+      const baseDmg = Math.max(1, player.atk + curseBonus - Math.floor(enemy.defense / 2));
+      const dmg = Math.floor((baseDmg + ri(-3, 6)) * mult);
+      enemy.hp -= dmg;
+      const critText = isCrit ? '💥 KRITIKAL! ' : '';
+      msg = `${critText}Kamu menyerang ${enemy.name} menghasilkan ${dmg} DMG!`;
+
+      if (ri(1, 100) <= Math.floor(player.SPD / 6)) {
+        const extraDmg = Math.max(1, Math.floor(player.atk / 2) + ri(-2, 4));
+        enemy.hp -= extraDmg;
+        msg += ` | ⚡ SPD memicu serangan kilat tambahan! +${extraDmg} DMG!`;
+      }
+      const lifestealRate = player.race_info.lifesteal || 0;
+      if (lifestealRate > 0) {
+        const stolen = Math.floor(dmg * lifestealRate);
+        player.hp = Math.min(player.max_hp, player.hp + stolen);
+        msg += ` (Menyerap +${stolen} HP)`;
+      }
+      if (player.CRS > 0 && ri(1, 100) <= Math.floor(player.CRS / 8)) {
+        const backlash = Math.max(1, Math.floor(player.CRS / 4));
+        player.hp -= backlash;
+        msg += ` | 🩸 Kutukan membalik! Kamu terluka ${backlash} HP!`;
+      }
+    } else if (action === '2') {
+      const chosenSkill = await chooseSkillForBattle(player);
+      if (!chosenSkill) { msg = 'Penggunaan skill dibatalkan.'; skipPost = true; }
+      else {
+        let mpCost = chosenSkill.cost;
+        if (player.race_info.mp_cost_reduce) mpCost = Math.max(1, Math.floor(mpCost * (1 - player.race_info.mp_cost_reduce)));
+        if (player.mp < mpCost) { msg = `⚠️ MP tidak mencukupi! Butuh ${mpCost} MP.`; skipPost = true; }
+        else {
+          player.mp -= mpCost;
+          const intBonus = Math.floor(player.INT / 2);
+          let skillDmg = player.atk + (chosenSkill.dmg || 0) + intBonus + ri(8, 20);
+          skillDmg = Math.max(1, skillDmg - Math.floor(enemy.defense / 3));
+          enemy.hp -= skillDmg;
+          msg = `✨ [${chosenSkill.name}] meledak! ${skillDmg} DMG pada ${enemy.name}! (INT +${intBonus} DMG)`;
+          if ((chosenSkill.heal || 0) > 0) {
+            player.hp = Math.min(player.max_hp, player.hp + chosenSkill.heal);
+            msg += ` (+${chosenSkill.heal} HP Pulih)`;
+          }
+          if ((chosenSkill.lifesteal || 0) > 0) {
+            const stolen = Math.floor(skillDmg * chosenSkill.lifesteal);
+            player.hp = Math.min(player.max_hp, player.hp + stolen);
+            msg += ` (+${stolen} HP Terserap)`;
+          }
+          if ((chosenSkill.poison_turns || 0) > 0) {
+            enemy.poison_turns = chosenSkill.poison_turns;
+            enemy.poison_dmg = chosenSkill.poison_dmg;
+            msg += ` | ☠️ ${enemy.name} terinfeksi racun!`;
+          }
+        }
+      }
+    } else if (action === '3') {
+      if (player.potions > 0) {
+        player.potions -= 1;
+        const healVal = Math.floor(player.max_hp * 0.45) + 30;
+        player.hp = Math.min(player.max_hp, player.hp + healVal);
+        msg = `🧪 Meminum Potion HP! (+${healVal} HP)`;
+      } else { msg = '⚠️ Potion HP sudah habis!'; skipPost = true; }
+    } else if (action === '4') {
+      if (player.mana_potions > 0) {
+        player.mana_potions -= 1;
+        const manaVal = Math.floor(player.max_mp * 0.50) + 25;
+        player.mp = Math.min(player.max_mp, player.mp + manaVal);
+        msg = `🔷 Meminum Potion MP! (+${manaVal} MP)`;
+      } else { msg = '⚠️ Potion MP sudah habis!'; skipPost = true; }
+    } else if (action === '5') {
+      if (player.elixirs > 0) {
+        player.elixirs -= 1;
+        player.hp = player.max_hp; player.mp = player.max_mp; player.poison_turns = 0;
+        msg = '🌟 Meminum Elixir Purba! HP & MP Pulih 100% dan semua racun disembuhkan!';
+      } else { msg = '⚠️ Elixir tidak tersedia!'; skipPost = true; }
+    } else if (action === '6') {
+      if (enemy.is_boss) { msg = '🚫 Kamu tidak bisa kabur dari pertempuran Boss!'; skipPost = true; }
+      else {
+        const evasion = player.evasion_rate + 35;
+        if (ri(1, 100) <= evasion) {
+          render(box(null, `<p class="logmsg">🏃💨 Kamu berhasil meloloskan diri ke lorong yang aman!</p>`));
+          await new Promise(r => setTimeout(r, 900));
+          return false;
+        } else { msg = '❌ Gagal kabur! Musuh menghalangi jalanmu!'; }
+      }
+    }
+
+    if (skipPost) continue;
+
+    if (enemy.hp > 0 && enemy.poison_turns > 0) {
+      enemy.hp -= enemy.poison_dmg;
+      enemy.poison_turns -= 1;
+      msg += ` | ☠️ Racun mengurangi ${enemy.poison_dmg} HP musuh!`;
+    }
+    if (enemy.is_boss && enemy.hp > 0) {
+      const ratio = enemy.hp / enemy.max_hp;
+      if (ratio <= 0.40 && !enemy.enraged) {
+        enemy.enraged = true;
+        enemy.atk = Math.floor(enemy.atk * 1.35);
+        msg += `\n🔥🔥 ${enemy.name} MEMASUKI AMUKAN ENRAGED! Serangannya meningkat pesat!`;
+      }
+      if (ratio <= 0.15 && !enemy.overdrive) {
+        enemy.overdrive = true;
+        enemy.atk = Math.floor(enemy.atk * 1.30);
+        msg += `\n💢💢💢 ${enemy.name} MEMASUKI OVERDRIVE SEKARAT! Sisa tenaganya berubah jadi amukan mematikan!`;
+      }
+    }
+    if (enemy.hp <= 0) {
+      let out = `<div class="win-title">🎉🎉 KEMENANGAN! ${esc(enemy.name)} BERHASIL DIKALAHKAN! 🎉🎉</div>${divider()}`;
+      const chaGold = Math.floor(enemy.gold_reward * (player.CHA * 0.01));
+      const totalGold = enemy.gold_reward + chaGold;
+      player.gold += totalGold;
+      out += chaGold > 0
+        ? `<p>💰 +${totalGold} Gold (termasuk bonus CHA +${chaGold})</p>`
+        : `<p>💰 +${totalGold} Gold</p>`;
+
+      if (enemy.loot_drop && (enemy.is_boss || rf() < 0.75)) {
+        // Boss punya peluang menjatuhkan banyak material sekaligus (1-3 stack), musuh elite sarang (1-2 stack).
+        const matCount = enemy.is_boss ? ri(1, 3) : (enemy.is_elite && rf() < 0.5 ? 2 : 1);
+        for (let i = 0; i < matCount; i++) player.inventory.push(enemy.loot_drop);
+        out += matCount > 1
+          ? `<p>📦 ${enemy.is_boss ? 'Boss' : 'Buruan sarang'} menjatuhkan LIMPAHAN Material: [${esc(enemy.loot_drop)}] x${matCount}!</p>`
+          : `<p>📦 Menemukan Material: [${esc(enemy.loot_drop)}]</p>`;
+      }
+      const zone = getZoneInfo(floor);
+      const zId = zone.id;
+      const gearChance = enemy.is_elite ? 0.5 : 0.35;
+      if (rf() < gearChance || enemy.is_boss) {
+        const wList = WEAPONS_TIER[zId] || [];
+        if (wList.length) {
+          const w = choiceArr(wList);
+          player.weapon_loot.push(Object.assign({}, w));
+          out += `<p>🗡️ Senjata Ditemukan: [${esc(w.name)}] (+${w.atk} ATK)</p>`;
+        }
+      }
+      if (rf() < gearChance || enemy.is_boss) {
+        const aList = ARMORS_TIER[zId] || [];
+        if (aList.length) {
+          const a = choiceArr(aList);
+          player.armor_loot.push(Object.assign({}, a));
+          out += `<p>🛡️ Zirah Ditemukan: [${esc(a.name)}] (+${a.def} DEF)</p>`;
+        }
+      }
+      if (rf() < (enemy.is_boss ? 0.55 : (enemy.is_elite ? 0.35 : 0.25))) {
+        const sList = SKILL_SCROLLS_TIER[zId] || [];
+        if (sList.length) {
+          const s = choiceArr(sList);
+          player.skill_loot.push(Object.assign({}, s));
+          out += `<p>📜 Gulungan Skill: [${esc(s.name)}]</p>`;
+        }
+      }
+      // Peluang drop LEGENDARIS khusus boss lantai: senjata/zirah/skill jauh di atas
+      // tier normal zona tersebut. Boss di lantai "puncak zona" (kelipatan 10) sedikit
+      // lebih murah hati ketimbang mini-boss di tengah zona.
+      if (enemy.is_boss) {
+        const isMajorBoss = (floor % 10 === 0);
+        const legendChance = isMajorBoss ? 0.30 : 0.18;
+        const legendPool = LEGENDARY_LOOT[zId];
+        if (legendPool && rf() < legendChance) {
+          const rollType = choiceArr(['weapon', 'armor', 'skill']);
+          if (rollType === 'weapon') {
+            const lw = Object.assign({}, legendPool.weapon);
+            player.weapon_loot.push(lw);
+            out += `<p class="win-title">🌟💎 DROP LEGENDARIS! Senjata [${esc(lw.name)}] (+${lw.atk} ATK) berhasil didapat!</p>`;
+          } else if (rollType === 'armor') {
+            const la = Object.assign({}, legendPool.armor);
+            player.armor_loot.push(la);
+            out += `<p class="win-title">🌟💎 DROP LEGENDARIS! Zirah [${esc(la.name)}] (+${la.def} DEF) berhasil didapat!</p>`;
+          } else {
+            const ls = Object.assign({}, legendPool.skill);
+            player.skill_loot.push(ls);
+            out += `<p class="win-title">🌟💎 DROP LEGENDARIS! Gulungan Skill [${esc(ls.name)}] berhasil didapat!</p>`;
+          }
+        }
+      }
+      const expRes = player.gainExp(enemy.exp_reward);
+      out += `<p>✨ +${expRes.amount} EXP!</p>`;
+      if (enemy.is_boss) player.bosses_defeated.push(enemy.name);
+
+      render(box(null, out));
+      updateHud(player);
+      await continueBtn('Lanjutkan ➜');
+
+      for (const ev of expRes.events) {
+        render(box('🎉🎉 LEVEL UP! 🎉🎉', `
+          <p>Kamu mencapai Level ${ev.level}!</p>
+          <p>📈 HP +${ev.hp_gain} | MP +${ev.mp_gain} | ATK +${ev.atk_gain} | DEF +${ev.def_gain}</p>
+          <p>✨ STR +${ev.str_gain} | INT +${ev.int_gain} | CHA +${ev.cha_gain} | SPD +${ev.spd_gain} | DEX +${ev.dex_gain}${ev.crs_gain ? ` | CRS +${ev.crs_gain}` : ''}</p>
+          <p>💖 HP & MP Dipulihkan Penuh!</p>
+        `));
+        updateHud(player);
+        await continueBtn('Lanjutkan ➜');
+      }
+      return true;
+    }
+
+    const evasionChance = player.evasion_rate;
+    if (ri(1, 100) <= evasionChance) {
+      msg += ` | 🌀 Kamu berhasil MENGHINDARI serangan ${enemy.name}!`;
+    } else {
+      const dmgTaken = Math.max(2, enemy.atk + ri(-4, 5) - player.defense);
+      player.hp -= dmgTaken;
+      msg += ` | 👹 ${enemy.name} membalas dengan ${dmgTaken} DMG!`;
+      if (enemy.name.includes('Beracun') || enemy.name.includes('Bisa') || enemy.is_boss) {
+        if (player.poison_turns === 0 && rf() < 0.25) {
+          player.poison_turns = 3;
+          player.poison_dmg = Math.max(5, Math.floor(enemy.atk / 6));
+          msg += ' | ☠️ Kamu terinfeksi racun musuh!';
+        }
+      }
+    }
+    if (player.hp > 0 && player.poison_turns > 0) {
+      player.hp -= player.poison_dmg;
+      player.poison_turns -= 1;
+      msg += ` | ☠️ Racun menggerogoti ${player.poison_dmg} HP milikmu!`;
+    }
+    player.mp = Math.min(player.max_mp, player.mp + 2);
+    updateHud(player);
+  }
+  return false;
+}
+
+/* ============================================================
+   TOKO, PANDAI BESI, CRAFTING
+   ============================================================ */
+async function shopMenu(player) {
+  let msg = '';
+  while (true) {
+    const zone = getZoneInfo(player.current_floor);
+    const zId = zone.id;
+    const disc = player.shop_discount;
+    const pricePotion = Math.max(1, Math.floor(35 * (1 - disc)));
+    const priceMana = Math.max(1, Math.floor(30 * (1 - disc)));
+    const priceElixir = Math.max(1, Math.floor(150 * (1 - disc)));
+
+    let body = `<p>💰 Gold Kamu: ${player.gold}G | 🏰 Lokasi: ${esc(zone.name)}</p>`;
+    if (disc > 0) body += `<p>💬 Diskon CHA: -${Math.round(disc * 100)}% untuk semua pembelian!</p>`;
+    if (msg) body += `<p class="logmsg">💬 ${nl2br(msg)}</p>`;
+    render(box('🏬 TOKO & PANDAI BESI KOTA', body));
+
+    const pilihan = await choose([
+      { label: `🧪 Potion HP (+45% HP) — ${pricePotion}G`, value: '1' },
+      { label: `🔷 Potion MP (+50% MP) — ${priceMana}G`, value: '2' },
+      { label: `🌟 Elixir Purba (Full) — ${priceElixir}G`, value: '3' },
+      { label: '🗡️ Beli Senjata Zona Ini', value: '4' },
+      { label: '🛡️ Beli Zirah Zona Ini', value: '5' },
+      { label: '🔨 Tempa & Upgrade (+1 s/d +10)', value: '6' },
+      { label: '🛠️ Meja Crafting Material', value: '7' },
+      { label: '💰 Jual Material Monster', value: '8' },
+      { label: '💰 Jual Senjata/Zirah/Scroll', value: '9' },
+      { label: '↩️ Kembali ke Dungeon', value: '0', cls: 'danger' },
+    ]);
+
+    if (pilihan === '1') {
+      if (player.gold >= pricePotion) { player.gold -= pricePotion; player.potions += 1; msg = 'Berhasil membeli 1 Potion HP!'; }
+      else msg = 'Gold tidak cukup untuk membeli Potion HP!';
+    } else if (pilihan === '2') {
+      if (player.gold >= priceMana) { player.gold -= priceMana; player.mana_potions += 1; msg = 'Berhasil membeli 1 Potion MP!'; }
+      else msg = 'Gold tidak cukup untuk membeli Potion MP!';
+    } else if (pilihan === '3') {
+      if (player.gold >= priceElixir) { player.gold -= priceElixir; player.elixirs += 1; msg = 'Berhasil membeli 1 Elixir Purba!'; }
+      else msg = 'Gold tidak cukup untuk membeli Elixir!';
+    } else if (pilihan === '4') {
+      const wList = WEAPONS_TIER[zId] || [];
+      let b2 = '';
+      wList.forEach((w, i) => {
+        const wPrice = Math.max(1, Math.floor(w.price * (1 - disc)));
+        b2 += `<div class="card"><div class="card-title">${esc(w.name)} (+${w.atk} ATK) — ${wPrice}G</div><div class="card-desc">${esc(w.lore || '')}</div></div>`;
+      });
+      render(box('🗡️ ETALASE SENJATA', b2));
+      const opts = wList.map((w, i) => ({ label: `Beli ${esc(w.name)}`, value: i }));
+      opts.push({ label: 'Batal', value: -1, cls: 'danger' });
+      const sel = await choose(opts);
+      if (sel !== -1) {
+        const chosen = wList[sel];
+        const wPrice = Math.max(1, Math.floor(chosen.price * (1 - disc)));
+        if (player.gold >= wPrice) { player.gold -= wPrice; player.equipWeapon(chosen); msg = `Berhasil membeli dan memasang [${chosen.name}]!`; }
+        else msg = 'Gold tidak cukup!';
+      } else msg = 'Batal membeli senjata.';
+    } else if (pilihan === '5') {
+      const aList = ARMORS_TIER[zId] || [];
+      let b2 = '';
+      aList.forEach((a) => { b2 += `<div class="card"><div class="card-title">${esc(a.name)} (+${a.def} DEF, +${a.hp || 0} HP) — ${Math.max(1, Math.floor(a.price * (1 - disc)))}G</div></div>`; });
+      render(box('🛡️ ETALASE ZIRAH', b2));
+      const opts = aList.map((a, i) => ({ label: `Beli ${esc(a.name)}`, value: i }));
+      opts.push({ label: 'Batal', value: -1, cls: 'danger' });
+      const sel = await choose(opts);
+      if (sel !== -1) {
+        const chosen = aList[sel];
+        const aPrice = Math.max(1, Math.floor(chosen.price * (1 - disc)));
+        if (player.gold >= aPrice) { player.gold -= aPrice; player.equipArmor(chosen); msg = `Berhasil membeli dan mengenakan [${chosen.name}]!`; }
+        else msg = 'Gold tidak cukup!';
+      } else msg = 'Batal membeli zirah.';
+    } else if (pilihan === '6') {
+      await upgradeMenu(player); msg = 'Selesai dari pandai besi.';
+    } else if (pilihan === '7') {
+      await craftingMenu(player); msg = 'Selesai dari meja crafting.';
+    } else if (pilihan === '8') {
+      await sellMaterialsMenu(player); msg = 'Selesai menjual material.';
+    } else if (pilihan === '9') {
+      await sellEquipmentMenu(player); msg = 'Selesai menjual perlengkapan.';
+    } else if (pilihan === '0') {
+      break;
+    }
+    updateHud(player);
+  }
+}
+
+async function upgradeMenu(player) {
+  while (true) {
+    const wCost = (player.weapon_upgrade + 1) * 80;
+    const aCost = (player.armor_upgrade + 1) * 75;
+    render(box('🔨 PANDAI BESI: TEMPA & UPGRADE', `
+      <p>💰 Gold Kamu: ${player.gold}G</p>
+      <p>⚔️ Senjata Saat Ini: ${esc(player.weapon_name)} (+${player.atk} Total ATK)</p>
+      <p>🛡️ Zirah Saat Ini: ${esc(player.armor_name)} (+${player.defense} Total DEF)</p>
+    `));
+    const ch = await choose([
+      { label: `⚔️ Upgrade Senjata → +${player.weapon_upgrade + 1} (+6 ATK) — ${wCost}G`, value: '1' },
+      { label: `🛡️ Upgrade Zirah → +${player.armor_upgrade + 1} (+5 DEF) — ${aCost}G`, value: '2' },
+      { label: '↩️ Kembali', value: '0', cls: 'danger' },
+    ]);
+    if (ch === '1') {
+      if (player.weapon_upgrade >= 10) { render(box(null, '<p class="logmsg">⚠️ Senjata ini sudah mencapai batas maksimal upgrade (+10)!</p>')); await continueBtn(); }
+      else if (player.gold >= wCost) {
+        player.gold -= wCost; player.weapon_upgrade += 1;
+        render(box(null, `<p class="logmsg">🎉 SUKSES! Senjata kini menjadi ${esc(player.weapon_name)}!</p>`)); await continueBtn();
+      } else { render(box(null, '<p class="logmsg">⚠️ Gold tidak mencukupi untuk upgrade senjata!</p>')); await continueBtn(); }
+    } else if (ch === '2') {
+      if (player.armor_upgrade >= 10) { render(box(null, '<p class="logmsg">⚠️ Zirah ini sudah mencapai batas maksimal upgrade (+10)!</p>')); await continueBtn(); }
+      else if (player.gold >= aCost) {
+        player.gold -= aCost; player.armor_upgrade += 1;
+        render(box(null, `<p class="logmsg">🎉 SUKSES! Zirah kini menjadi ${esc(player.armor_name)}!</p>`)); await continueBtn();
+      } else { render(box(null, '<p class="logmsg">⚠️ Gold tidak mencukupi untuk upgrade zirah!</p>')); await continueBtn(); }
+    } else if (ch === '0') break;
+    updateHud(player);
+  }
+}
+
+async function craftingMenu(player) {
+  let msg = '';
+  while (true) {
+    let body = '';
+    CRAFT_RECIPES.forEach((r) => {
+      const canCraft = Object.entries(r.requires).every(([k, v]) => player.inventory.filter(x => x === k).length >= v);
+      const status = canCraft ? '✅ SIAP' : '❌ KURANG';
+      const reqStr = Object.entries(r.requires).map(([k, v]) => `${v}x ${k}`).join(', ');
+      const statStr = r.type === 'weapon' ? `+${r.atk || 0} ATK` : `+${r.def || 0} DEF, +${r.hp || 0} HP`;
+      body += `<div class="card">
+        <div class="card-title">${status} [${esc(r.name)}] (${statStr})</div>
+        <div class="card-desc">Butuh: ${esc(reqStr)}</div>
+        <div class="card-desc">Lore: ${esc(r.desc || '')}</div>
+      </div>`;
+    });
+    if (msg) body += `<p class="logmsg">💬 ${nl2br(msg)}</p>`;
+    render(box('🛠️ MEJA TEMPA RESEP MATERIAL', body));
+    const opts = CRAFT_RECIPES.map((r, i) => {
+      const canCraft = Object.entries(r.requires).every(([k, v]) => player.inventory.filter(x => x === k).length >= v);
+      return { label: `Tempa ${esc(r.name)}`, value: i, disabled: !canCraft };
+    });
+    opts.push({ label: '↩️ Kembali', value: -1, cls: 'danger' });
+    const ch = await choose(opts);
+    if (ch === -1) break;
+    const r = CRAFT_RECIPES[ch];
+    const canCraft = Object.entries(r.requires).every(([k, v]) => player.inventory.filter(x => x === k).length >= v);
+    if (canCraft) {
+      for (const [k, v] of Object.entries(r.requires)) {
+        for (let i = 0; i < v; i++) {
+          const idx = player.inventory.indexOf(k);
+          if (idx !== -1) player.inventory.splice(idx, 1);
+        }
+      }
+      if (r.type === 'weapon') player.equipWeapon({ name: r.name, atk: r.atk });
+      else player.equipArmor({ name: r.name, def: r.def, hp: r.hp || 0 });
+      msg = `🎉 Berhasil menempa [${r.name}] dan langsung dipasangkan!`;
+    } else msg = 'Material monster belum mencukupi untuk resep ini!';
+    updateHud(player);
+  }
+}
+
+async function sellMaterialsMenu(player) {
+  let msg = '';
+  while (true) {
+    const sellMult = 1 + (player.CHA * 0.005);
+    if (!player.inventory.length) {
+      render(box('💰 JUAL MATERIAL MONSTER', `<p>💰 Gold Kamu: ${player.gold}G</p><p>(Tidak ada material monster di dalam tas.)</p>`));
+      await continueBtn('Kembali ➜');
+      return;
+    }
+    const uniqueItems = Array.from(new Set(player.inventory)).sort();
+    let body = `<p>💰 Gold Kamu: ${player.gold}G</p>`;
+    if (player.CHA > 5) body += `<p>💬 Bonus CHA: harga jual +${Math.round((sellMult - 1) * 100)}%!</p>`;
+    uniqueItems.forEach((item) => {
+      const count = player.inventory.filter(x => x === item).length;
+      const val = Math.floor((LOOT_SELL_VALUE[item] || 25) * sellMult);
+      body += `<div class="card"><div class="card-title">${esc(item)} x${count}</div><div class="card-desc">${val}G / item (Total: ${val * count}G)</div></div>`;
+    });
+    if (msg) body += `<p class="logmsg">💬 ${nl2br(msg)}</p>`;
+    render(box('💰 JUAL MATERIAL MONSTER', body));
+
+    const opts = uniqueItems.map((item, i) => ({ label: `Jual ${esc(item)}`, value: `i${i}` }));
+    opts.push({ label: '💰 Jual SEMUA Sekaligus', value: '99', cls: 'primary' });
+    opts.push({ label: '↩️ Kembali', value: '0', cls: 'danger' });
+    const ch = await choose(opts);
+
+    if (ch === '0') break;
+    else if (ch === '99') {
+      let totalEarned = 0;
+      for (const itm of player.inventory.slice()) totalEarned += Math.floor((LOOT_SELL_VALUE[itm] || 25) * sellMult);
+      player.inventory.length = 0;
+      player.gold += totalEarned;
+      msg = `Menjual seluruh material mendapatkan ${totalEarned}G!`;
+    } else if (ch.startsWith('i')) {
+      const target = uniqueItems[parseInt(ch.slice(1), 10)];
+      const cnt = player.inventory.filter(x => x === target).length;
+      const val = Math.floor((LOOT_SELL_VALUE[target] || 25) * sellMult);
+      const amt = await askNumber(1, cnt, cnt);
+      for (let i = 0; i < amt; i++) {
+        const idx = player.inventory.indexOf(target);
+        if (idx !== -1) player.inventory.splice(idx, 1);
+      }
+      const earned = val * amt;
+      player.gold += earned;
+      msg = `Menjual ${amt}x ${target} seharga ${earned}G!`;
+    }
+    updateHud(player);
+  }
+}
+
+async function sellEquipmentMenu(player) {
+  let msg = '';
+  while (true) {
+    const items = [];
+    let body = `<p>💰 Gold Kamu: ${player.gold}G</p>`;
+    player.weapon_loot.forEach((w, i) => {
+      const price = Math.max(20, Math.floor((w.price != null ? w.price : (w.atk || 10) * 12) * 0.5));
+      items.push({ kind: 'weapon', idx: i, obj: w, price });
+      body += `<div class="card"><div class="card-title">⚔️ ${esc(w.name)} (+${w.atk} ATK) → ${price}G</div></div>`;
+    });
+    player.armor_loot.forEach((a, i) => {
+      const price = Math.max(20, Math.floor((a.price != null ? a.price : (a.def || 5) * 14) * 0.5));
+      items.push({ kind: 'armor', idx: i, obj: a, price });
+      body += `<div class="card"><div class="card-title">🛡️ ${esc(a.name)} (+${a.def} DEF) → ${price}G</div></div>`;
+    });
+    player.skill_loot.forEach((s, i) => {
+      const price = s.sell_price != null ? s.sell_price : 100;
+      items.push({ kind: 'scroll', idx: i, obj: s, price });
+      body += `<div class="card"><div class="card-title">📜 ${esc(s.name)} → ${price}G</div></div>`;
+    });
+    if (!items.length) body += '<p>(Tas perlengkapan simpanan kosong.)</p>';
+    if (msg) body += `<p class="logmsg">💬 ${nl2br(msg)}</p>`;
+    render(box('💰 JUAL PERLENGKAPAN SIMPANAN', body));
+
+    const opts = items.map((it, i) => ({ label: `Jual ${esc(it.obj.name)}`, value: i }));
+    opts.push({ label: '↩️ Kembali', value: -1, cls: 'danger' });
+    const ch = await choose(opts);
+    if (ch === -1) break;
+    const it = items[ch];
+    if (it.kind === 'weapon') player.weapon_loot.splice(it.idx, 1);
+    else if (it.kind === 'armor') player.armor_loot.splice(it.idx, 1);
+    else player.skill_loot.splice(it.idx, 1);
+    player.gold += it.price;
+    msg = `Berhasil menjual [${it.obj.name}] seharga ${it.price}G!`;
+    updateHud(player);
+  }
+}
+
+/* ============================================================
+   INVENTORI & MANAJEMEN SKILL
+   ============================================================ */
+async function manageActiveSkills(player) {
+  while (true) {
+    let body = `<p>Total Skill Dikuasai: ${player.learned_skills.length}</p>`;
+    player.learned_skills.forEach((sk) => {
+      const isActive = player.active_skills.some(s => s.name === sk.name);
+      let statDesc = `+${sk.dmg || 0} DMG`;
+      if (sk.heal) statDesc += ` | +${sk.heal} Heal`;
+      if (sk.lifesteal) statDesc += ` | ${Math.round(sk.lifesteal * 100)}% Lifesteal`;
+      if (sk.poison_turns) statDesc += ` | Racun ${sk.poison_dmg}/turn`;
+      const status = isActive ? '✅ AKTIF' : '⬜ Nonaktif';
+      body += `<div class="card"><div class="card-title">${status} — ${esc(sk.name)} (${sk.cost} MP)</div><div class="card-desc">${statDesc}</div></div>`;
+    });
+    render(box('🪄 PENGATURAN SKILL AKTIF (MAKS 3)', body));
+    const opts = player.learned_skills.map((sk, i) => {
+      const isActive = player.active_skills.some(s => s.name === sk.name);
+      return { label: `${isActive ? 'Matikan' : 'Aktifkan'}: ${esc(sk.name)}`, value: i };
+    });
+    opts.push({ label: '↩️ Selesai & Kembali', value: -1, cls: 'danger' });
+    const idx = await choose(opts);
+    if (idx === -1) break;
+    const chosen = player.learned_skills[idx];
+    const existing = player.active_skills.findIndex(s => s.name === chosen.name);
+    if (existing !== -1) {
+      if (player.active_skills.length > 1) player.active_skills.splice(existing, 1);
+      else { render(box(null, '<p class="logmsg">⚠️ Kamu harus membawa minimal 1 skill aktif!</p>')); await continueBtn(); }
+    } else {
+      if (player.active_skills.length < MAX_ACTIVE_SKILLS) player.active_skills.push(Object.assign({}, chosen));
+      else { render(box(null, `<p class="logmsg">⚠️ Slot skill penuh! Matikan salah satu dari ${MAX_ACTIVE_SKILLS} skill aktif terlebih dahulu.</p>`)); await continueBtn(); }
+    }
+  }
+}
+
+async function inventoryMenu(player) {
+  let msg = '';
+  while (true) {
+    let body = `<p>📈 Level ${player.level} ${esc(player.race_name)} [${esc(player.class_name)}] (Tier ${player.tier})</p>`;
+    body += `<p>💖 HP: ${player.hp}/${player.max_hp} | 🔷 MP: ${player.mp}/${player.max_mp} | 💰 ${player.gold}G</p>`;
+    body += `<p class="statline">${player.statLine()}</p>`;
+    body += `<p>⚔️ Senjata Aktif: ${esc(player.weapon_name)} (+${player.atk} Total ATK)</p>`;
+    body += `<p>🛡️ Zirah Aktif: ${esc(player.armor_name)} (+${player.defense} Total DEF)</p>`;
+    body += `<p>🧪 Potion HP: ${player.potions} | 🔷 Potion MP: ${player.mana_potions} | 🌟 Elixir: ${player.elixirs}</p>`;
+    if (msg) body += `<p class="logmsg">💬 ${nl2br(msg)}</p>`;
+    render(box('🎒 TAS & INVENTORI', body));
+
+    const ch = await choose([
+      { label: '⚔️ Ganti Senjata dari Simpanan', value: '1' },
+      { label: '🛡️ Ganti Zirah dari Simpanan', value: '2' },
+      { label: '📜 Pelajari Gulungan Skill', value: '3' },
+      { label: '🪄 Atur 3 Slot Skill Tempur Aktif', value: '4' },
+      { label: '📦 Lihat Daftar Material Monster', value: '5' },
+      { label: '↩️ Kembali', value: '0', cls: 'danger' },
+    ]);
+
+    if (ch === '1') {
+      if (!player.weapon_loot.length) { msg = 'Tidak ada senjata simpanan di dalam tas!'; continue; }
+      let b2 = '';
+      player.weapon_loot.forEach((w) => { b2 += `<div class="card"><div class="card-title">${esc(w.name)} (+${w.atk} ATK)</div><div class="card-desc">${esc(w.lore || '')}</div></div>`; });
+      render(box('⚔️ SENJATA SIMPANAN', b2));
+      const opts = player.weapon_loot.map((w, i) => ({ label: `Pasang ${esc(w.name)}`, value: i }));
+      opts.push({ label: 'Batal', value: -1, cls: 'danger' });
+      const sel = await choose(opts);
+      if (sel !== -1) {
+        const chosen = player.weapon_loot.splice(sel, 1)[0];
+        player.equipWeapon(chosen);
+        msg = `Berhasil memasang senjata [${chosen.name}]!`;
+      } else msg = 'Batal ganti senjata.';
+    } else if (ch === '2') {
+      if (!player.armor_loot.length) { msg = 'Tidak ada zirah simpanan di dalam tas!'; continue; }
+      let b2 = '';
+      player.armor_loot.forEach((a) => { b2 += `<div class="card"><div class="card-title">${esc(a.name)} (+${a.def} DEF, +${a.hp || 0} HP)</div></div>`; });
+      render(box('🛡️ ZIRAH SIMPANAN', b2));
+      const opts = player.armor_loot.map((a, i) => ({ label: `Pasang ${esc(a.name)}`, value: i }));
+      opts.push({ label: 'Batal', value: -1, cls: 'danger' });
+      const sel = await choose(opts);
+      if (sel !== -1) {
+        const chosen = player.armor_loot.splice(sel, 1)[0];
+        player.equipArmor(chosen);
+        msg = `Berhasil mengenakan zirah [${chosen.name}]!`;
+      } else msg = 'Batal ganti zirah.';
+    } else if (ch === '3') {
+      if (!player.skill_loot.length) { msg = 'Tidak ada gulungan skill baru di dalam tas!'; continue; }
+      let b2 = '';
+      player.skill_loot.forEach((s) => { b2 += `<div class="card"><div class="card-title">${esc(s.name)} (${s.cost} MP)</div><div class="card-desc">+${s.dmg || 0} DMG | Heal: ${s.heal || 0}</div></div>`; });
+      render(box('📜 GULUNGAN SKILL', b2));
+      const opts = player.skill_loot.map((s, i) => ({ label: `Pelajari ${esc(s.name)}`, value: i }));
+      opts.push({ label: 'Batal', value: -1, cls: 'danger' });
+      const sel = await choose(opts);
+      if (sel !== -1) {
+        const chosen = player.skill_loot.splice(sel, 1)[0];
+        msg = learnSkill(player, chosen) ? `✨ Berhasil mempelajari skill baru: [${chosen.name}]!` : `Skill [${chosen.name}] sudah pernah kamu pelajari sebelumnya.`;
+      } else msg = 'Batal mempelajari skill.';
+    } else if (ch === '4') {
+      await manageActiveSkills(player);
+      msg = 'Pengaturan skill tempur diperbarui.';
+    } else if (ch === '5') {
+      let b2 = '';
+      if (!player.inventory.length) b2 = '<p>(Kosong)</p>';
+      else Array.from(new Set(player.inventory)).sort().forEach((itm) => {
+        const cnt = player.inventory.filter(x => x === itm).length;
+        b2 += `<div class="card"><div class="card-title">${esc(itm)} x${cnt}</div></div>`;
+      });
+      render(box('📦 MATERIAL & LOOT MONSTER', b2));
+      await continueBtn('Kembali ➜');
+    } else if (ch === '0') break;
+    updateHud(player);
+  }
+}
+
+/* ============================================================
+   SARANG MONSTER (khusus Mode Neraka) — grinding strategis:
+   pemain memilih SATU jenis musuh dari zona ini untuk dihadapi berturut-turut
+   sebagai versi Elite. Tiap gelombang yang dimenangkan bertambah kuat, tapi
+   loot & exp juga ikut naik — pemain sendiri yang memutuskan kapan berhenti.
+   ============================================================ */
+async function denMenu(player) {
+  const zone = getZoneInfo(player.current_floor);
+  const monsters = ZONE_ENEMIES[zone.id] || ZONE_ENEMIES[1];
+  const required = getHellGrindRequirement(player.current_floor);
+
+  let body = `<p class="storytext">🕳️ Kabut merah pekat menuntunmu ke celah tersembunyi di dinding dungeon.</p>`;
+  body += `<p class="storytext">Di sinilah para petualang mengasah diri sebelum kembali menghadapi koridor Dungeon Neraka. Monster sarang memang ganas, tetapi <b>masih lebih lemah daripada monster koridor Dungeon Neraka</b>.</p>`;
+  body += `<p class="statline">🔥 Persiapan Abyss saat ini: <b>${player.hell_grind}</b> poin | Rekomendasi lantai ${player.current_floor}: <b>${required}</b> poin.</p>`;
+  body += `<p class="statline">Menang setiap gelombang memberi Persiapan Abyss sebagai bekal. Tidak ada jumlah minimum yang diwajibkan untuk masuk dungeon. Semakin lama bertahan, semakin besar EXP, Gold, loot, dan Persiapan Abyss yang diperoleh. Mundur setelah menang tetap menyimpan hasil grinding.</p>`;
+  
+
+  const opts = monsters.map((m, i) => ({
+    label: `${m[0]} (HP~${m[1]} / ATK~${m[2]} / DEF~${m[3]})`, value: i,
+  }));
+  opts.push({ label: '↩️ Batal, Kembali ke Lantai', value: -1, cls: 'danger' });
+  const sel = await choose(opts);
+  if (sel === -1) return;
+
+  const template = monsters[sel];
+  const [baseName, baseHp, baseAtk, baseDef, baseExp, baseGold, loot] = template;
+
+  let wave = 1;
+  while (player.hp > 0) {
+    /* Sarang sengaja dibuat lebih mudah daripada Dungeon Neraka.
+       Ia adalah tempat grinding, bukan jalur utama. */
+    const eliteMod = HELL_DEN_ELITE_MULT + (wave - 1) * 0.20;
+    const rewardMod = 1.35 + (wave - 1) * 0.16;
+    const enemy = makeEnemy(
+      `${baseName} Elite (Gelombang ${wave})`,
+      Math.floor(baseHp * eliteMod), Math.floor(baseAtk * eliteMod), Math.floor(baseDef * eliteMod),
+      Math.floor(baseExp * rewardMod), Math.floor(baseGold * rewardMod), loot, false
+    );
+    enemy.is_elite = true;
+
+    
+    await continueBtn('Hadapi Gelombang! ⚔️');
+
+    const won = await battle(player, enemy, player.current_floor);
+    if (player.hp <= 0) return;
+    if (!won) {
+      render(box(null, `<p class="logmsg">🏃 Kamu mundur dari Sarang Monster. Persiapan Abyss yang sudah dikumpulkan tetap tersimpan.</p>`));
+      await continueBtn('Kembali ➜');
+      return;
+    }
+
+    const grindGain = 2 + zone.id + Math.floor(wave / 3);
+    player.hell_grind += grindGain;
+
+    const reqNow = getHellGrindRequirement(player.current_floor);
+    render(box(null, `
+      <p class="logmsg">🩸 Gelombang ${wave} berhasil ditumbangkan!</p>
+      <p>🔥 Persiapan Abyss +${grindGain}. Total: <b>${player.hell_grind}</b> / ${reqNow} untuk kesiapan lantai ini.</p>
+      <p class="statline">Sarang Monster masih berada di bawah tingkat ancaman Dungeon Neraka. Jangan terlalu percaya diri.</p>
+    `));
+
+    const cont = await choose([
+      { label: `➡️ Lanjut Gelombang ${wave + 1} (Lebih Kuat & Grinding Lebih Besar)`, value: 'continue', cls: 'primary' },
+      { label: '🚪 Cukup, Kembali ke Lantai', value: 'leave', cls: 'danger' },
+    ]);
+    if (cont === 'leave') return;
+    wave += 1;
+    updateHud(player);
+  }
+}
+
+/* ============================================================
+   SAVE & LOAD GAME (via download/upload file, tanpa localStorage)
+   ============================================================ */
+function playerToSaveData(player) {
+  return {
+    name: player.name, race_key: player.race_key, race_name: player.race_name, race_info: player.race_info,
+    class_name: player.class_name, base_class_info: player.base_class_info, tier: player.tier,
+    level: player.level, exp: player.exp, exp_needed: player.exp_needed, gold: player.gold,
+    base_max_hp: player.base_max_hp, base_max_mp: player.base_max_mp, hp: player.hp, mp: player.mp,
+    base_atk: player.base_atk, base_def: player.base_def,
+    STR: player.STR, INT: player.INT, CHA: player.CHA, SPD: player.SPD, DEX: player.DEX, CRS: player.CRS,
+    equipped_weapon: player.equipped_weapon, weapon_upgrade: player.weapon_upgrade,
+    equipped_armor: player.equipped_armor, armor_upgrade: player.armor_upgrade,
+    learned_skills: player.learned_skills, active_skills: player.active_skills,
+    potions: player.potions, mana_potions: player.mana_potions, elixirs: player.elixirs,
+    inventory: player.inventory, weapon_loot: player.weapon_loot, armor_loot: player.armor_loot, skill_loot: player.skill_loot,
+    reputation: player.reputation, story_flags: player.story_flags, quest_flags: player.quest_flags,
+    bosses_defeated: player.bosses_defeated, current_floor: player.current_floor,
+    explore_count: player.explore_count, difficulty: player.difficulty,
+    hell_grind: player.hell_grind, hell_prepared_floor: player.hell_prepared_floor,
+  };
+}
+
+function saveGameToFile(player) {
+  const data = playerToSaveData(player);
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'eldoria_save.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function loadGameFromData(d) {
+  try {
+    const p = new Player(d.name, d.race_key || '1', '1', d.equipped_weapon);
+    p.race_name = d.race_name; p.race_info = d.race_info;
+    p.class_name = d.class_name; p.base_class_info = d.base_class_info;
+    p.tier = d.tier; p.level = d.level; p.exp = d.exp; p.exp_needed = d.exp_needed; p.gold = d.gold;
+    p.base_max_hp = d.base_max_hp; p.base_max_mp = d.base_max_mp; p.hp = d.hp; p.mp = d.mp;
+    p.base_atk = d.base_atk; p.base_def = d.base_def;
+    p.STR = d.STR; p.INT = d.INT; p.CHA = d.CHA; p.SPD = d.SPD; p.DEX = d.DEX; p.CRS = d.CRS;
+    p.equipped_weapon = d.equipped_weapon; p.weapon_upgrade = d.weapon_upgrade || 0;
+    p.equipped_armor = d.equipped_armor; p.armor_upgrade = d.armor_upgrade || 0;
+    p.learned_skills = d.learned_skills; p.active_skills = d.active_skills;
+    p.potions = d.potions; p.mana_potions = d.mana_potions; p.elixirs = d.elixirs != null ? d.elixirs : 1;
+    p.inventory = d.inventory || []; p.weapon_loot = d.weapon_loot || []; p.armor_loot = d.armor_loot || []; p.skill_loot = d.skill_loot || [];
+    p.reputation = d.reputation || 0; p.story_flags = d.story_flags || []; p.quest_flags = d.quest_flags || [];
+    p.bosses_defeated = d.bosses_defeated || []; p.current_floor = d.current_floor || 1;
+    p.explore_count = d.explore_count || 0;
+    p.difficulty = d.difficulty || 'normal';
+    p.hell_grind = d.hell_grind || 0;
+    p.hell_prepared_floor = d.hell_prepared_floor || 0;
+    p.recalcHpMp();
+    return p;
+  } catch (e) {
+    console.error('Error membaca save file:', e);
+    return null;
+  }
+}
+
+function pickSaveFile() {
+  return new Promise((resolve) => {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'application/json';
+    inp.onchange = () => {
+      const file = inp.files[0];
+      if (!file) { resolve(null); return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        try { resolve(JSON.parse(reader.result)); } catch (e) { resolve(null); }
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsText(file);
+    };
+    inp.click();
+  });
+}
+
+/* ============================================================
+   PEMBUATAN KARAKTER
+   ============================================================ */
+async function allocateBonusStats() {
+  const pointsTotal = 15;
+  const labels = {
+    str: '🎯 STR (Strength — Kekuatan Fisik/ATK)',
+    int: '🧠 INT (Intelligence — Daya Sihir/Skill)',
+    cha: '💬 CHA (Charisma — Diskon Toko & Gold)',
+    spd: '🌀 SPD (Speed — Evasion & Serangan Kilat)',
+    dex: '🏹 DEX (Dexterity — Critical & Evasion)',
+    crs: '🩸 CRS (Curse — Kutukan, Damage Ekstra tapi Berisiko)',
+  };
+  const keys = Object.keys(labels);
+
+  return new Promise((resolve) => {
+    function draw() {
+      let body = `<p>Kamu memiliki <b>${pointsTotal}</b> poin bakat untuk dibagikan ke 6 stat berikut. Sisa poin otomatis masuk ke STR.</p>${divider()}`;
+      body += `<div id="statform">`;
+      keys.forEach(k => {
+        body += `<div class="statrow"><label>${labels[k]}</label><input type="number" min="0" max="${pointsTotal}" value="0" id="stat_${k}" class="statinput"></div>`;
+      });
+      body += `</div><p id="statremain" class="statline">Sisa poin: ${pointsTotal}</p>`;
+      render(box('🌟 DISTRIBUSI BAKAT STAT TAMBAHAN', body));
+
+      const inputs = {};
+      keys.forEach(k => { inputs[k] = document.getElementById(`stat_${k}`); });
+      const remainEl = document.getElementById('statremain');
+      function recalcRemain() {
+        let used = 0;
+        keys.forEach(k => { used += Math.max(0, parseInt(inputs[k].value, 10) || 0); });
+        const remain = pointsTotal - used;
+        remainEl.textContent = `Sisa poin: ${remain}`;
+        remainEl.classList.toggle('overspend', remain < 0);
+        return remain;
+      }
+      keys.forEach(k => inputs[k].addEventListener('input', recalcRemain));
+      recalcRemain();
+
+      choose([{ label: 'Selesai & Mulai Petualangan ➜', value: true, cls: 'primary' }]).then(() => {
+        const stats = { str: 0, int: 0, cha: 0, spd: 0, dex: 0, crs: 0 };
+        let used = 0;
+        keys.forEach(k => {
+          const v = Math.max(0, Math.min(pointsTotal, parseInt(inputs[k].value, 10) || 0));
+          stats[k] = v; used += v;
+        });
+        if (used > pointsTotal) {
+          // terlalu banyak dialokasikan: skala ulang sederhana, sisakan minimal 0
+          let excess = used - pointsTotal;
+          for (const k of keys) {
+            if (excess <= 0) break;
+            const cut = Math.min(stats[k], excess);
+            stats[k] -= cut; excess -= cut;
+          }
+        } else if (used < pointsTotal) {
+          stats.str += (pointsTotal - used);
+        }
+        resolve(stats);
+      });
+    }
+    draw();
+  });
+}
+
+function classThemeKey(className) {
+  const map = {
+    Warrior:'warrior', Mage:'mage', Rogue:'rogue', Paladin:'paladin',
+    Archer:'archer', Necromancer:'necromancer'
+  };
+  return map[className] || 'warrior';
+}
+
+function applyClassTheme(className) {
+  const body = document.body;
+  [...body.classList].filter(c => c.startsWith('class-theme-')).forEach(c => body.classList.remove(c));
+  if (className) body.classList.add('class-theme-' + classThemeKey(className));
+  body.dataset.classTheme = className || '';
+}
+
+function selectCardGrid(items, kind) {
+  return new Promise(resolve => {
+    const grid = document.createElement('div');
+    grid.className = 'selection-grid';
+    items.forEach(item => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `select-card ${kind === 'race' ? 'race-card' : kind === 'class' ? 'class-card' : 'weapon-card'}`;
+      b.innerHTML = item.html;
+      b.onclick = () => {
+        grid.querySelectorAll('.select-card').forEach(x => x.classList.remove('race-selected','class-selected'));
+        b.classList.add(kind === 'race' ? 'race-selected' : kind === 'class' ? 'class-selected' : 'weapon-selected');
+      if (kind === 'class' && item && (item.name || item.label)) {
+        window.setEldoriaClassTheme(item.name || item.label);
+        document.dispatchEvent(new CustomEvent('eldoria:class-selected', { detail: { name: item.name || item.label } }));
+      }
+
+        grid.remove();
+        resolve(item.value);
+      };
+      grid.appendChild(b);
+    });
+    appendEl(grid);
+  });
+}
+
+async function createCharacter() {
+  render(box('PEMBUATAN PAHLAWAN ELDORIA RPG', '<p>Masukkan nama pahlawanmu:</p>'));
+  let name = (await askText('Nama Pahlawan', '')).trim();
+  if (!name) name = 'Ksatria Takdir';
+
+  const raceItems = Object.entries(RACES).map(([k, v]) => ({
+    value:k,
+    html:`<div class="card-title">${esc(v.name)}</div>
+          <div class="card-desc">${esc(RACE_LORE[v.name])}</div>
+          <div class="card-stat">HP +${v.hp} • MP +${v.mp} • ATK +${v.atk} • DEF +${v.def}</div>
+          <div class="card-stat">CRIT ${v.crit}% • EVA ${v.evasion}%</div>`
+  }));
+  render(box('🧬 PILIH ASAL RAS KARAKTER', '<p class="statline">Klik langsung pada ras yang kamu inginkan.</p>'));
+  const rChoice = await selectCardGrid(raceItems, 'race');
+
+  const classItems = Object.entries(BASE_CLASSES).map(([k, v]) => ({
+    value:k,
+    html:`<div class="card-title">⚔️ ${esc(v.name)}</div>
+          <div class="card-desc">${esc(CLASS_LORE[v.name])}</div>
+          <div class="card-stat">Skill: [${esc(v.skill_name)}] • ${v.skill_cost} MP • ${v.skill_dmg} DMG</div>
+          <div class="card-stat">HP +${v.hp} • MP +${v.mp} • ATK +${v.atk} • DEF +${v.def}</div>`
+  }));
+  render(box('⚔️ PILIH KELAS DASAR (TIER 1)', '<p class="statline">Tema UI akan langsung berubah mengikuti kelas yang dipilih.</p>'));
+  const cChoice = await selectCardGrid(classItems, 'class');
+  applyClassTheme(BASE_CLASSES[cChoice].name);
+
+  const weaponItems = Object.entries(INITIAL_WEAPONS).map(([k, v]) => ({
+    value: k,
+    html: `<div class="card-title">🗡️ ${esc(v.name)}</div>
+           <div class="card-desc">${esc(v.lore)}</div>
+           <div class="card-stat"><b>ATK +${v.atk}</b> • ${v.price}G</div>`
+  }));
+  render(box('🗡️ PILIH SENJATA AWAL', '<p class="statline">Klik langsung kartu senjata untuk memilih.</p>'));
+  const wChoice = await selectCardGrid(weaponItems, 'weapon');
+
+  const bonusStats = await allocateBonusStats();
+
+  const diffChoice = await choose([
+    { label: '🌤️ Mulai Mode Normal', value: 'normal', cls: 'primary' },
+    { label: '🔥 Mulai Mode Neraka', value: 'hell', cls: 'danger' },
+  ]);
+
+  applyClassTheme(BASE_CLASSES[cChoice].name);
+  return new Player(name, rChoice, cChoice, INITIAL_WEAPONS[wChoice], bonusStats, diffChoice);
+}
+
+/* ============================================================
+   EVENT PLOT & RANDOM ENCOUNTER
+   ============================================================ */
+function findEventByFlag(flag) {
+  for (const zoneEvents of Object.values(STORY_EVENTS)) {
+    for (const ev of zoneEvents) if (ev[0] === flag) return ev;
+  }
+  return null;
+}
+
+async function runStoryEvent(player, event) {
+  const [flag, text] = event;
+  player.story_flags.push(flag);
+
+  let body = `<p class="storytext">${nl2br(text)}</p>`;
+  if (event.length === 3) {
+    const choices = event[2];
+    render(box(null, body));
+    const idx = await choose(choices.map((c, i) => ({ label: esc(c.label), value: i })));
+    const sel = choices[idx];
+    player.reputation += sel.rep || 0;
+    if (sel.stat) {
+      const [statName, val] = sel.stat;
+      player[statName] = (player[statName] || 0) + val;
+    }
+    if (sel.flag) player.quest_flags.push(sel.flag);
+
+    let repTxt = '';
+    if ((sel.rep || 0) > 0) repTxt = `(+${sel.rep} Reputasi)`;
+    else if ((sel.rep || 0) < 0) repTxt = `(${sel.rep} Reputasi)`;
+    render(box(null, `<p class="storytext">${nl2br(text)}</p>${divider()}<p>💬 ${esc(sel.result || 'Pilihanmu telah menentukan arah takdirmu.')}</p>${repTxt ? `<p class="statline">${repTxt}</p>` : ''}`));
+  } else {
+    if (flag.includes('seal_fragment')) { player.inventory.push('Pecahan Segel Eldoria'); player.reputation += 10; }
+    else if (flag.includes('kael') || flag.includes('truth') || flag.includes('elara') || flag.includes('prayer')) {
+      player.quest_flags.push(flag); player.reputation += 5;
+    }
+    render(box(null, body));
+  }
+  updateHud(player);
+  await continueBtn('Lanjutkan ➜');
+  return true;
+}
+
+async function triggerStoryOrEvent(player, floor) {
+  const zone = getZoneInfo(floor);
+  const events = STORY_EVENTS[zone.id] || [];
+
+  const guaranteedFlag = GUARANTEED_STORY_FLOORS[floor];
+  if (guaranteedFlag && !player.story_flags.includes(guaranteedFlag)) {
+    const event = findEventByFlag(guaranteedFlag);
+    if (event) return await runStoryEvent(player, event);
+  }
+
+  const available = events.filter(e => !player.story_flags.includes(e[0]));
+  if (available.length && rf() < 0.35) {
+    return await runStoryEvent(player, choiceArr(available));
+  }
+
+  const roll = rf();
+  if (roll < 0.20) {
+    player.hp = player.max_hp; player.mp = player.max_mp; player.poison_turns = 0;
+    render(box('💧 MATA AIR SUCI PURBA 💧', '<p>Kamu menemukan kubangan mata air berkilau cahaya biru.</p><p>Meminumnya memulihkan HP & MP sampai batas penuh!</p>'));
+    updateHud(player);
+    await continueBtn('Lanjutkan ➜');
+    return true;
+  } else if (roll < 0.35) {
+    const goldFound = ri(40, 90) * zone.id;
+    player.gold += goldFound;
+    let extra = '';
+    if (rf() < 0.40) { player.potions += 1; extra = '<p>🧪 Mendapatkan tambahan +1 Potion HP!</p>'; }
+    render(box('📦 PETI HARTA TERSEMBUNYI! 📦', `<p>Kamu membongkar peti kuno dan menemukan +${goldFound} Gold!</p>${extra}`));
+    updateHud(player);
+    await continueBtn('Lanjutkan ➜');
+    return true;
+  } else if (roll < 0.45) {
+    const expRes = player.gainExp(ri(40, 100) * zone.id);
+    render(box('🔮 ALTAR MISTERI PURBA 🔮', `<p>Aura misterius menyelimuti tubuhmu.</p><p>✨ +${expRes.amount} EXP!</p>`));
+    updateHud(player);
+    await continueBtn('Lanjutkan ➜');
+    for (const ev of expRes.events) {
+      render(box('🎉🎉 LEVEL UP! 🎉🎉', `
+        <p>Kamu mencapai Level ${ev.level}!</p>
+        <p>📈 HP +${ev.hp_gain} | MP +${ev.mp_gain} | ATK +${ev.atk_gain} | DEF +${ev.def_gain}</p>
+        <p>✨ STR +${ev.str_gain} | INT +${ev.int_gain} | CHA +${ev.cha_gain} | SPD +${ev.spd_gain} | DEX +${ev.dex_gain}${ev.crs_gain ? ` | CRS +${ev.crs_gain}` : ''}</p>
+        <p>💖 HP & MP Dipulihkan Penuh!</p>
+      `));
+      updateHud(player);
+      await continueBtn('Lanjutkan ➜');
+    }
+    return true;
+  }
+  return false;
+}
+
+/* ============================================================
+   ENDING
+   ============================================================ */
+async function showGameEnding(player) {
+  const hasAllSeals = player.inventory.filter(x => x === 'Pecahan Segel Eldoria').length >= 2;
+  const hasTruth = player.quest_flags.includes('kael_truth') || player.quest_flags.includes('elara_whisper');
+
+  let body = `<p>Pahlawan Legendaris: <b>${esc(player.name)}</b> [${esc(player.class_name)}]</p>`;
+  body += `<p>Level Akhir: ${player.level} | Total Gold: ${player.gold}G | Boss Dikalahkan: ${player.bosses_defeated.length}</p>${divider()}`;
+  body += `<p>📖 JEJAK KISAH YANG KAMU TEMUKAN:</p>`;
+  const recapOrder = [
+    ['kael_intro', 'Bisikan Kapten Kael di reruntuhan gerbang'],
+    ['seal_fragment_1', 'Pecahan Segel Eldoria pertama'],
+    ['kael_truth', 'Kebenaran pengorbanan Kael oleh para bangsawan'],
+    ['seal_fragment_2', 'Pecahan Segel Eldoria kedua'],
+    ['elara_whisper', 'Bisikan Elara tentang hakikat sejati Ignis'],
+    ['final_revelation', 'Wahyu terakhir tentang sejarah Eldoria'],
+    ['ignis_true_nature', 'Kebenaran penuh: Ignis sang penjaga terantai'],
+  ];
+  let foundAny = false;
+  recapOrder.forEach(([flag, label]) => {
+    if (player.story_flags.includes(flag)) { body += `<p>✅ ${esc(label)}</p>`; foundAny = true; }
+  });
+  if (!foundAny) body += '<p>...perjalananmu penuh pertarungan, minim jeda untuk menggali kebenaran.</p>';
+  body += `<p>🎖️ Reputasi Akhir: ${player.reputation}</p>${divider()}`;
+
+  let title, desc;
+  if (hasAllSeals && hasTruth && player.reputation >= 20) {
+    title = '🌟 TRUE ENDING: PENJAGA FAJAR ABADI (ETERNAL DAWN)';
+    desc = 'Dengan menyatukan Pecahan Segel dan menyingkap rahasia masa lalu, kamu tidak membunuh Ignis, melainkan memulihkan Segel Tujuh Bintang bersama Elara. Ignis kembali tertidur tenang menjaga jurang terdalam. Kegelapan surut, dan Eldoria memasuki era kedamaian abadi di bawah perlindunganmu!';
+  } else if (player.reputation <= -10 || player.class_name.includes('Abyss')) {
+    title = '🌑 DARK ENDING: PENGUASA ABYSS MUTLAK (LORD OF THE VOID)';
+    desc = 'Kekuatan Ignis dan energi 50 lantai telah mengalir ke dalam nadimu. Kamu merebut Takhta Kuno dan memerintah seluruh monster Abyss. Kerajaan Eldoria gemetar di bawah bayang-bayang kekuasaanmu yang tak tertandingi!';
+  } else {
+    title = '⚔️ HEROIC ENDING: SANG PENAKLUK DUNGEON';
+    desc = 'Naga Ignis berhasil dikalahkan dan gerbang kegelapan tertutup rapat. Namamu diukir dengan emas di gerbang utama kerajaan sebagai Pahlawan Terbesar Sepanjang Masa. Namun di kedalaman terdalam, bisikan misterius mengingatkan bahwa petualangan sejati tak pernah usai.';
+  }
+  body += `<p class="ending-title">${title}</p><p class="storytext">${esc(desc)}</p>`;
+  render(box('🏆 EPILOG PENAKLUKAN 50 LANTAI 🏆', body));
+  await choose([{ label: '🔄 Mulai Petualangan Baru', value: true, cls: 'primary' }]);
+}
+
+/* ============================================================
+   MAIN GAME LOOP
+   ============================================================ */
+async function mainGame() {
+  updateHud(null);
+  render(box('🏰 ELDORIA RPG: 50 FLOORS OF ABYSS 🏰', `<p>Sebuah petualangan text-RPG epik menuruni 50 lantai Labirin Abyss.</p>`));
+  const startCh = await choose([
+    { label: '⚔️ Mulai Petualangan Baru', value: '1', cls: 'primary' },
+    { label: '💾 Lanjutkan Game (Load Save)', value: '2' },
+    { label: '🚪 Keluar', value: '0', cls: 'danger' },
+  ]);
+
+  let player = null;
+  if (startCh === '0') {
+    render(box(null, '<p class="storytext">Sampai jumpa di petualangan berikutnya!</p>'));
+    return;
+  } else if (startCh === '2') {
+    const d = await pickSaveFile();
+    if (d) {
+      player = loadGameFromData(d);
+      if (player) {
+        render(box(null, `<p class="storytext">🎉 Game berhasil dimuat! Selamat datang kembali, ${esc(player.name)}!</p>`));
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+    if (!player) {
+      render(box(null, '<p class="logmsg">⚠️ Save file tidak ditemukan atau rusak. Memulai game baru...</p>'));
+      await new Promise(r => setTimeout(r, 800));
+      render(box('📖 PROLOG: KEBANGKITAN KEGELAPAN ELDORIA', `<p class="storytext">${nl2br(PROLOGUE_STORY)}</p>`));
+      await continueBtn('Mulai Petualangan ➜');
+      player = await createCharacter();
+    }
+  } else {
+    render(box('📖 PROLOG: KEBANGKITAN KEGELAPAN ELDORIA', `<p class="storytext">${nl2br(PROLOGUE_STORY)}</p>`));
+    await continueBtn('Mulai Petualangan ➜');
+    player = await createCharacter();
+  }
+
+  let logMsg = `Petualangan dimulai di Lantai ${player.current_floor}!`;
+
+  while (player.hp > 0 && player.current_floor <= MAX_FLOORS) {
+    await checkAndPromoteClass(player);
+
+    const zone = getZoneInfo(player.current_floor);
+    const bossPending = player.explore_count >= EXPLORES_PER_FLOOR;
+    const bossInfo = bossPending ? getFloorBoss(player.current_floor, player) : null;
+
+    updateHud(player);
+    let body = `<p class="zone-name">🏰 LANTAI ${player.current_floor}/${MAX_FLOORS} | ${esc(zone.name)}${player.isHell ? ' <span style="color:var(--red)">🔥 MODE NERAKA</span>' : ''}</p>`;
+    body += `<p>⚔️ Senjata: ${esc(player.weapon_name)} (+${player.atk} ATK) | 🛡️ Zirah: ${esc(player.armor_name)} (+${player.defense} DEF)</p>`;
+    body += `<p class="statline">${player.statLine()}</p>`;
+    if (!bossPending) body += `<p class="statline">🧭 Progres Jelajah: ${player.explore_count}/${EXPLORES_PER_FLOOR} menuju Boss Lantai</p>`;
+    if (player.isHell && !bossPending) {
+      const req = getHellGrindRequirement(player.current_floor);
+      const prepared = player.hell_prepared_floor === player.current_floor;
+      body += `<p class="statline">🔥 Persiapan Abyss: ${player.hell_grind}/${req} ${prepared ? '✅ LANTAI SIAP DIJELAJAHI' : '⚠️ GRINDING DIPERLUKAN'}</p>`;
+    }
+    body += divider();
+
+    let actions;
+    if (bossPending) {
+      body += ``;
+      body += `<p class="boss-name">👹 BOSS: ${esc(bossInfo.name)}</p>`;
+      body += `<p class="storytext">📜 ${esc(bossInfo.intro)}</p>`;
+      actions = [
+        { label: '⚔️ TANTANG PERTEMPURAN BOSS!', value: '1', cls: 'primary' },
+        { label: '⛺ Istirahat di Kamp (25G)', value: '2' },
+        { label: '🏬 Toko, Pandai Besi & Crafting', value: '3' },
+        { label: '🎒 Buka Tas / Inventori', value: '4' },
+        { label: '💾 Simpan Game', value: '5' },
+      ];
+      if (player.isHell) actions.push({ label: '🕳️ Sarang Monster (Grinding Strategis)', value: '6' });
+    } else {
+      body += `<p>Pilih tindakanmu:</p>`;
+      actions = [
+        { label: player.isHell ? '🔥 Jelajahi Dungeon Neraka (Sangat Berbahaya)' : '🧭 Jelajahi Koridor Lantai Ini', value: '1', cls: 'primary' },
+        { label: '⛺ Istirahat di Kamp (25G → Full HP/MP)', value: '2' },
+        { label: '🏬 Kunjungi Toko & Pandai Besi', value: '3' },
+        { label: '🎒 Buka Tas / Inventori & Status', value: '4' },
+        { label: '💾 Simpan Game', value: '5' },
+      ];
+      if (player.isHell) actions.push({ label: '🕳️ Sarang Monster (Grinding Strategis)', value: '6' });
+    }
+    body += divider() + `<p class="logmsg">INFO: ${nl2br(logMsg)}</p>`;
+    render(box(null, body));
+    const act = await choose(actions);
+
+    if (bossPending) {
+      if (act === '1') {
+        const b = bossInfo;
+        const bossEnemy = makeEnemy(b.name, b.hp, b.atk, b.def, b.exp, b.gold, b.loot, true);
+        const won = await battle(player, bossEnemy, player.current_floor);
+        if (won) {
+          logMsg = `🎉 Berhasil menaklukkan Boss ${b.name}!`;
+          if (player.current_floor === MAX_FLOORS) break;
+          player.current_floor += 1;
+          player.explore_count = 0;
+          if (player.isHell) player.hell_prepared_floor = 0;
+          if (STORY_DATA[player.current_floor]) {
+            render(box(null, `<p class="storytext">${nl2br(STORY_DATA[player.current_floor])}</p>`));
+            await continueBtn('Melangkah Maju ➜');
+          }
+          logMsg = `Menjejakkan kaki di Lantai ${player.current_floor}!`;
+        } else {
+          if (player.hp <= 0) break;
+          logMsg = 'Berhasil mundur dari ruang Boss.';
+        }
+      } else if (act === '2') {
+        if (player.gold >= 25) { player.gold -= 25; player.hp = player.max_hp; player.mp = player.max_mp; player.poison_turns = 0; logMsg = 'Istirahat selesai. HP & MP dipulihkan penuh!'; }
+        else logMsg = 'Gold tidak cukup untuk menyewa kamp (25G)!';
+      } else if (act === '3') { await shopMenu(player); logMsg = 'Kembali dari pedagang & pandai besi.'; }
+      else if (act === '4') { await inventoryMenu(player); logMsg = 'Selesai mengatur inventori.'; }
+      else if (act === '5') {
+        saveGameToFile(player);
+        logMsg = '✅ Progres game berhasil disimpan! (File eldoria_save.json terunduh)';
+      } else if (act === '6') {
+        await denMenu(player);
+        if (player.hp <= 0) break;
+        logMsg = 'Kembali dari Sarang Monster.';
+      }
+    } else {
+      if (act === '1') {
+        /* ========================================================
+           DUNGEON NERAKA — TANPA RESTRIKSI GRINDING
+           Grinding di Sarang Monster hanya REKOMENDASI.
+           Player tetap boleh masuk kapan saja, tetapi monster
+           Dungeon Neraka sengaja dibuat jauh lebih kuat.
+           Tidak ada level minimum, biaya masuk, atau syarat
+           Persiapan Abyss. Kalau memaksa masuk tanpa persiapan,
+           konsekuensinya ditentukan oleh pertarungan: player bisa
+           kehilangan banyak HP atau mati.
+           ======================================================== */
+        if (player.isHell) {
+          const req = getHellGrindRequirement(player.current_floor);
+          const grind = player.hell_grind || 0;
+          let dangerText = '';
+
+          if (grind === 0) {
+            dangerText = `
+              
+              <p class="storytext">Tidak ada yang menghalangimu masuk. Tetapi tekanan Abyss dan monster di koridor ini jauh lebih brutal daripada Sarang Monster. Masuk sekarang berarti mempertaruhkan nyawamu.</p>
+            `;
+          } else if (grind < req) {
+            dangerText = `
+              <p class="boss-warn">⚠️ Persiapanmu masih di bawah rekomendasi lantai ini.</p>
+              <p class="statline">🔥 Persiapan Abyss: <b>${grind}</b> | Rekomendasi: <b>${req}</b></p>
+              <p class="storytext">Kamu tetap bisa masuk. Tidak ada larangan. Namun kekuatanmu belum ideal untuk menghadapi tekanan Abyss lantai ini.</p>
+            `;
+          } else {
+            dangerText = `
+              <p class="statline">🛡️ Persiapan Abyss: <b>${grind}</b> | Rekomendasi: <b>${req}</b></p>
+              <p class="storytext">Kamu memiliki bekal grinding yang cukup untuk menghadapi lantai ini. Tetap waspada — Dungeon Neraka tidak pernah menjadi aman.</p>
+            `;
+          }
+
+          
+          const triggered = await triggerStoryOrEvent(player, player.current_floor);
+          if (!triggered) {
+            const enemy = getEnemyForFloor(player.current_floor, player);
+            await battle(player, enemy, player.current_floor);
+            logMsg = 'Selesai menjelajahi koridor Dungeon Neraka.';
+          } else {
+            logMsg = 'Menemukan peristiwa khusus di Dungeon Neraka.';
+          }
+
+          if (player.hp > 0) {
+            player.explore_count += 1;
+            if (player.explore_count >= EXPLORES_PER_FLOOR) {
+              logMsg += ' Kabut tebal mendadak menyelimuti koridor... sesuatu yang besar sedang mendekat!';
+            }
+          }
+                } else {
+          const triggered = await triggerStoryOrEvent(player, player.current_floor);
+          if (!triggered) {
+            const enemy = getEnemyForFloor(player.current_floor, player);
+            await battle(player, enemy, player.current_floor);
+            logMsg = player.isHell ? 'Selesai menjelajahi koridor Dungeon Neraka.' : 'Selesai menjelajahi koridor dungeon.';
+          } else logMsg = player.isHell ? 'Menemukan peristiwa khusus di Dungeon Neraka.' : 'Menemukan peristiwa khusus di dungeon.';
+          if (player.hp > 0) {
+            player.explore_count += 1;
+            if (player.explore_count >= EXPLORES_PER_FLOOR) {
+              logMsg += ' Kabut tebal mendadak menyelimuti koridor... sesuatu yang besar sedang mendekat!';
+            }
+          }
+        }
+      } else if (act === '2') {
+        if (player.gold >= 25) { player.gold -= 25; player.hp = player.max_hp; player.mp = player.max_mp; player.poison_turns = 0; logMsg = 'Istirahat selesai. HP & MP dipulihkan penuh!'; }
+        else logMsg = 'Gold tidak cukup untuk menyewa kamp (25G)!';
+      } else if (act === '3') { await shopMenu(player); logMsg = 'Kembali dari pedagang & pandai besi.'; }
+      else if (act === '4') { await inventoryMenu(player); logMsg = 'Selesai memeriksa inventori.'; }
+      else if (act === '5') {
+        saveGameToFile(player);
+        logMsg = '✅ Progres game berhasil disimpan ke file! (eldoria_save.json terunduh)';
+      } else if (act === '6') {
+        await denMenu(player);
+        if (player.hp <= 0) break;
+        logMsg = 'Kembali dari Sarang Monster.';
+      }
+    }
+    updateHud(player);
+  }
+
+  if (player.hp <= 0) {
+    updateHud(null);
+    render(box('💀 KEMATIAN PAHLAWAN 💀', `
+      <p>💀💀 KEMATIAN PAHLAWAN DI LANTAI ${player.current_floor} 💀💀</p>
+      <p>${esc(player.name)} sang ${esc(player.class_name)} telah gugur dalam kegelapan Abyss.</p>
+      <p>Kerajaan Eldoria runtuh ditelan amukan monster purba...</p>
+    `));
+    await choose([{ label: '🔄 Mulai Petualangan Baru', value: true, cls: 'primary' }]);
+  } else {
+    await showGameEnding(player);
+    updateHud(null);
+  }
+}
+
+async function bootLoop() {
+  while (true) {
+    try {
+      await mainGame();
+    } catch (e) {
+      console.error(e);
+      render(box('⚠️ Terjadi Kesalahan', `<p class="logmsg">${esc(e.message || String(e))}</p>`));
+      await continueBtn('Mulai Ulang ➜');
+    }
+  }
+}
+
+bootLoop();
+
+</script>
+
+
+
+
+<script id="eldoria-class-theme-engine">
+(function () {
+  const THEMES = {
+    warrior: 'class-theme-warrior',
+    mage: 'class-theme-mage',
+    rogue: 'class-theme-rogue',
+    paladin: 'class-theme-paladin',
+    archer: 'class-theme-archer',
+    necromancer: 'class-theme-necromancer'
+  };
+
+  function normalizeClassName(name) {
+    return String(name || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+
+  function resolveTheme(className) {
+    const n = normalizeClassName(className);
+
+    // Exact / family matching keeps promoted classes on their original fantasy theme.
+    if (n.includes('warrior') || n.includes('berserker') || n.includes('champion') ||
+        n.includes('warlord') || n.includes('guardian')) return 'warrior';
+
+    if (n.includes('mage') || n.includes('archmage') || n.includes('wizard') ||
+        n.includes('sorcer') || n.includes('invoker') || n.includes('archon')) return 'mage';
+
+    if (n.includes('rogue') || n.includes('assassin') || n.includes('shadow') ||
+        n.includes('phantom') || n.includes('thief')) return 'rogue';
+
+    if (n.includes('paladin') || n.includes('aegis') || n.includes('holy') ||
+        n.includes('crusader')) return 'paladin';
+
+    if (n.includes('archer') || n.includes('ranger') || n.includes('marksman') ||
+        n.includes('hunter')) return 'archer';
+
+    if (n.includes('necromancer') || n.includes('lich') || n.includes('death lord') ||
+        n.includes('reaper') || n.includes('undead')) return 'necromancer';
+
+    return null;
+  }
+
+  window.setEldoriaClassTheme = function (className) {
+    const theme = resolveTheme(className);
+    if (!theme) return;
+
+    Object.values(THEMES).forEach(cls => document.body.classList.remove(cls));
+    document.body.classList.add(THEMES[theme]);
+    document.body.dataset.classTheme = theme;
+  };
+
+  // Listen for custom events from the game's selection flow.
+  document.addEventListener('eldoria:class-selected', e => {
+    if (e.detail) setEldoriaClassTheme(e.detail.name || e.detail.className || e.detail);
+  });
+
+  // Watch for common game state variables when they are exposed globally.
+  function syncFromGlobals() {
+    const candidates = [
+      window.selectedClass,
+      window.currentClass,
+      window.playerClass,
+      window.gameState && window.gameState.class,
+      window.gameState && window.gameState.currentClass
+    ];
+    const candidate = candidates.find(Boolean);
+    if (candidate) {
+      setEldoriaClassTheme(candidate.name || candidate);
+    }
+  }
+
+  window.addEventListener('eldoria:state-changed', syncFromGlobals);
+  setTimeout(syncFromGlobals, 0);
+  setTimeout(syncFromGlobals, 150);
+  setTimeout(syncFromGlobals, 500);
+})();
+</script>
+
+
+<script id="eldoria-hp-mp-bar-fix">
+(function () {
+  function percent(current, max) {
+    current = Number(current);
+    max = Number(max);
+    if (!Number.isFinite(current) || !Number.isFinite(max) || max <= 0) return 0;
+    return Math.max(0, Math.min(100, current / max * 100));
+  }
+
+  window.updateEldoriaHpMpBars = function (hp, maxHp, mp, maxMp) {
+    const hpPct = percent(hp, maxHp);
+    const mpPct = percent(mp, maxMp);
+
+    document.querySelectorAll(
+      '.hp-fill, .health-fill, .bar-hp, .health-bar > .fill, .stat-bar.hp .fill'
+    ).forEach(el => {
+      el.style.width = hpPct + '%';
+      el.style.background = '#8B0000';
+      el.style.backgroundImage = 'linear-gradient(90deg,#8B0000,#FF3333)';
+    });
+
+    document.querySelectorAll(
+      '.mp-fill, .mana-fill, .bar-mp, .mana-bar > .fill, .stat-bar.mp .fill'
+    ).forEach(el => {
+      el.style.width = mpPct + '%';
+      el.style.background = '#0000FF';
+      el.style.backgroundImage = 'linear-gradient(90deg,#0000FF,#4D7CFF)';
+    });
+  };
+})();
+</script>
+
+</body>
+</html>
