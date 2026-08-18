@@ -741,12 +741,33 @@ body[class*="class-theme-"] .description {
 
 <style id="eldoria-fixed-hp-mp-bars">
 /* HP/MP bars are gameplay indicators, not class-theme accents.
-   HP is always red, MP is always blue. */
+   HP is always red, MP is always blue, enemy HP is always violet.
+   The actual DOM markup is <div class="bar-fill hp|mp|enemy-hp">,
+   so these are the selectors that must be targeted (the old rules
+   below referenced .hp-fill/.bar-hp/etc, which never matched
+   anything in the real markup — that's why the theme's generic
+   `body[class*="class-theme-"] .bar > *` rule was winning and
+   recoloring the bars). !important is used because that generic
+   theme rule has higher specificity than a plain .bar-fill.hp rule. */
+body[class*="class-theme-"] .bar-fill.hp {
+  background: linear-gradient(90deg, #7a1f1f, #c94b4b) !important;
+}
+body[class*="class-theme-"] .bar-fill.mp {
+  background: linear-gradient(90deg, #1f4f7a, #3f8fd6) !important;
+}
+body[class*="class-theme-"] .bar-fill.enemy-hp {
+  background: linear-gradient(90deg, #4a1f7a, #8a3fd6) !important;
+}
+
+/* Non-standard bar markup, kept as a safety net in case other
+   parts of the UI ever use these class names instead. */
 body[class*="class-theme-"] .hp-bar,
 body[class*="class-theme-"] .hp-fill,
 body[class*="class-theme-"] .bar-hp,
 body[class*="class-theme-"] .health-bar,
-body[class*="class-theme-"] .health-fill {
+body[class*="class-theme-"] .health-fill,
+body[class*="class-theme-"] .stat-bar.hp .fill,
+body[class*="class-theme-"] .stat-bar.health .fill {
   background: #8B0000 !important;
   background-image: linear-gradient(90deg, #8B0000, #FF3333) !important;
 }
@@ -755,32 +776,25 @@ body[class*="class-theme-"] .mp-bar,
 body[class*="class-theme-"] .mp-fill,
 body[class*="class-theme-"] .bar-mp,
 body[class*="class-theme-"] .mana-bar,
-body[class*="class-theme-"] .mana-fill {
+body[class*="class-theme-"] .mana-fill,
+body[class*="class-theme-"] .stat-bar.mp .fill,
+body[class*="class-theme-"] .stat-bar.mana .fill {
   background: #0000FF !important;
   background-image: linear-gradient(90deg, #0000FF, #4D7CFF) !important;
 }
 
-/* Common generic bar structures used by the game. */
-body[class*="class-theme-"] .stat-bar.hp .fill,
-body[class*="class-theme-"] .stat-bar.health .fill {
-  background: #8B0000 !important;
-}
-body[class*="class-theme-"] .stat-bar.mp .fill,
-body[class*="class-theme-"] .stat-bar.mana .fill {
-  background: #0000FF !important;
-}
-
-/* Prevent the class theme's progress-bar rule from recoloring HP/MP. */
-body[class*="class-theme-"] .hp-bar *,
-body[class*="class-theme-"] .hp-fill *,
-body[class*="class-theme-"] .mp-bar *,
-body[class*="class-theme-"] .mp-fill * {
-  background-image: none;
-}
-
 /* The empty portion stays dark; only the fill width represents current HP/MP. */
-.hp-bar, .mp-bar, .bar-hp, .bar-mp, .health-bar, .mana-bar {
+.hp-bar, .mp-bar, .bar-hp, .bar-mp, .health-bar, .mana-bar, .bar {
   overflow: hidden;
+}
+
+/* .bar-label is also a direct child of .bar (sibling of .bar-fill), and it's
+   positioned absolute + inset:0, covering the whole bar. The theme's generic
+   `.bar > *` rule was giving IT a solid gradient background too, which sat on
+   top of and completely hid the actual HP/MP fill underneath. It must stay
+   transparent so only its text shows and the fill/width remains visible. */
+body[class*="class-theme-"] .bar-label {
+  background: none !important;
 }
 </style>
 
