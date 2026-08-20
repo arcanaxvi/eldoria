@@ -2507,11 +2507,6 @@ async function mainGame() {
     body += `<p>⚔️ Senjata: ${esc(player.weapon_name)} (+${player.atk} ATK) | 🛡️ Zirah: ${esc(player.armor_name)} (+${player.defense} DEF)</p>`;
     body += `<p class="statline">${player.statLine()}</p>`;
     if (!bossPending) body += `<p class="statline">🧭 Progres Jelajah: ${player.explore_count}/${EXPLORES_PER_FLOOR} menuju Boss Lantai</p>`;
-    if (player.isHell && !bossPending) {
-      const req = getHellGrindRequirement(player.current_floor);
-      const prepared = player.hell_prepared_floor === player.current_floor;
-      body += `<p class="statline">🔥 Persiapan Abyss: ${player.hell_grind}/${req} ${prepared ? '✅ LANTAI SIAP DIJELAJAHI' : '⚠️ GRINDING DIPERLUKAN'}</p>`;
-    }
     body += divider();
 
     let actions;
