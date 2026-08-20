@@ -1769,6 +1769,28 @@ async function battle(player, enemy, floor) {
             out += `<p class="win-title">🌟💎 DROP LEGENDARIS! Gulungan Skill [${esc(ls.name)}] berhasil didapat!</p>`;
           }
         }
+      } else {
+        // Peluang kecil "keberuntungan liar": bahkan musuh biasa/elite sarang bisa
+        // menjatuhkan item legendaris zona ini. Elite sedikit lebih beruntung.
+        // Ini yang bikin SETIAP pertarungan terasa berharga untuk dicoba, bukan cuma boss fight.
+        const wildLegendChance = enemy.is_elite ? 0.02 : 0.008;
+        const legendPool = LEGENDARY_LOOT[zId];
+        if (legendPool && rf() < wildLegendChance) {
+          const rollType = choiceArr(['weapon', 'armor', 'skill']);
+          if (rollType === 'weapon') {
+            const lw = Object.assign({}, legendPool.weapon);
+            player.weapon_loot.push(lw);
+            out += `<p class="win-title">✨🍀 KEBERUNTUNGAN LIAR! ${esc(enemy.name)} ternyata membawa Senjata [${esc(lw.name)}] (+${lw.atk} ATK)!</p>`;
+          } else if (rollType === 'armor') {
+            const la = Object.assign({}, legendPool.armor);
+            player.armor_loot.push(la);
+            out += `<p class="win-title">✨🍀 KEBERUNTUNGAN LIAR! ${esc(enemy.name)} ternyata membawa Zirah [${esc(la.name)}] (+${la.def} DEF)!</p>`;
+          } else {
+            const ls = Object.assign({}, legendPool.skill);
+            player.skill_loot.push(ls);
+            out += `<p class="win-title">✨🍀 KEBERUNTUNGAN LIAR! ${esc(enemy.name)} ternyata membawa Gulungan Skill [${esc(ls.name)}]!</p>`;
+          }
+        }
       }
       const expRes = player.gainExp(enemy.exp_reward);
       out += `<p>✨ +${expRes.amount} EXP!</p>`;
@@ -2321,6 +2343,114 @@ async function saveGameMenu(player) {
   }
 }
 
+/* ============================================================
+   LEGACY SYSTEM (Meta-Progression Antar Playthrough)
+   Bahkan saat pahlawan gugur, Poin Warisan yang terkumpul tetap
+   tersimpan permanen di browser ini (localStorage terpisah dari save game)
+   dan bisa dibelanjakan untuk bonus abadi pada karakter berikutnya.
+   Kematian jadi bermakna — bukan cuma kembali ke titik nol.
+   ============================================================ */
+const LEGACY_KEY = 'eldoria_legacy_v1';
+
+const LEGACY_UPGRADES = {
+  str:    { label: '🎯 Warisan Kekuatan',      desc: '+1 STR permanen tiap level',        perLevel: 1,  baseCost: 12, growth: 1.18, max: 15 },
+  int:    { label: '🧠 Warisan Kebijaksanaan', desc: '+1 INT permanen tiap level',        perLevel: 1,  baseCost: 12, growth: 1.18, max: 15 },
+  cha:    { label: '💬 Warisan Karisma',       desc: '+1 CHA permanen tiap level',        perLevel: 1,  baseCost: 12, growth: 1.18, max: 15 },
+  spd:    { label: '🌀 Warisan Kecepatan',     desc: '+1 SPD permanen tiap level',        perLevel: 1,  baseCost: 12, growth: 1.18, max: 15 },
+  dex:    { label: '🏹 Warisan Ketangkasan',   desc: '+1 DEX permanen tiap level',        perLevel: 1,  baseCost: 12, growth: 1.18, max: 15 },
+  gold:   { label: '💰 Warisan Kekayaan',      desc: '+25 Gold awal tiap level',          perLevel: 25, baseCost: 8,  growth: 1.15, max: 20 },
+  potion: { label: '🧪 Warisan Persiapan',     desc: '+1 Ramuan HP awal tiap level',      perLevel: 1,  baseCost: 15, growth: 1.20, max: 10 },
+  elixir: { label: '⚗️ Warisan Alkimia',       desc: '+1 Elixir Purba awal tiap level',   perLevel: 1,  baseCost: 40, growth: 1.30, max: 5  },
+};
+
+function loadLegacy() {
+  try {
+    const raw = localStorage.getItem(LEGACY_KEY);
+    if (!raw) return { points: 0, lifetime: 0, levels: {} };
+    const d = JSON.parse(raw);
+    return { points: d.points || 0, lifetime: d.lifetime || 0, levels: d.levels || {} };
+  } catch (e) { return { points: 0, lifetime: 0, levels: {} }; }
+}
+
+function saveLegacy(legacy) {
+  try { localStorage.setItem(LEGACY_KEY, JSON.stringify(legacy)); } catch (e) {}
+}
+
+function legacyUpgradeCost(defn, currentLevel) {
+  return Math.floor(defn.baseCost * Math.pow(defn.growth, currentLevel));
+}
+
+// Poin Warisan didapat dari kedalaman terjauh yang dicapai + jumlah boss yang
+// dikalahkan sepanjang perjalanan itu. Mode Neraka memberi bonus 50% karena
+// risikonya jauh lebih besar. Ini yang membuat setiap run — menang ATAU kalah —
+// tetap terasa "worth it" dan mendorong pemain segera memulai run berikutnya.
+function calcLegacyPointsEarned(player) {
+  const floorPts = player.current_floor * 3;
+  const bossPts = (player.bosses_defeated ? player.bosses_defeated.length : 0) * 15;
+  let total = floorPts + bossPts;
+  if (player.isHell) total = Math.floor(total * 1.5);
+  return Math.max(5, total);
+}
+
+function grantLegacyPoints(player) {
+  const legacy = loadLegacy();
+  const earned = calcLegacyPointsEarned(player);
+  legacy.points += earned;
+  legacy.lifetime += earned;
+  saveLegacy(legacy);
+  return earned;
+}
+
+function applyLegacyBonusToPlayer(player) {
+  const legacy = loadLegacy();
+  const lv = legacy.levels || {};
+  if (lv.str) player.STR += lv.str * LEGACY_UPGRADES.str.perLevel;
+  if (lv.int) player.INT += lv.int * LEGACY_UPGRADES.int.perLevel;
+  if (lv.cha) player.CHA += lv.cha * LEGACY_UPGRADES.cha.perLevel;
+  if (lv.spd) player.SPD += lv.spd * LEGACY_UPGRADES.spd.perLevel;
+  if (lv.dex) player.DEX += lv.dex * LEGACY_UPGRADES.dex.perLevel;
+  if (lv.gold) player.gold += lv.gold * LEGACY_UPGRADES.gold.perLevel;
+  if (lv.potion) player.potions += lv.potion * LEGACY_UPGRADES.potion.perLevel;
+  if (lv.elixir) player.elixirs += lv.elixir * LEGACY_UPGRADES.elixir.perLevel;
+}
+
+async function legacyAltarMenu() {
+  const legacy = loadLegacy();
+  let msg = '';
+  while (true) {
+    let header = `<p class="statline">✨ Poin Warisan tersedia: <b>${legacy.points}</b> (total terkumpul sepanjang masa: ${legacy.lifetime})</p>`;
+    header += `<p>Setiap pahlawan yang gugur atau menaklukkan Abyss mewariskan kekuatannya. Poin ini tersimpan permanen di browser ini dan bisa dibelanjakan untuk bonus abadi bagi pahlawan berikutnya.</p>`;
+    if (msg) header += `<p class="logmsg">💬 ${esc(msg)}</p>${divider()}`; else header += divider();
+
+    const items = Object.entries(LEGACY_UPGRADES).map(([key, defn]) => {
+      const curLevel = legacy.levels[key] || 0;
+      const maxed = curLevel >= defn.max;
+      const cost = maxed ? null : legacyUpgradeCost(defn, curLevel);
+      const disabled = maxed || (cost !== null && legacy.points < cost);
+      return {
+        value: key,
+        disabled,
+        html: `<div class="card-title">${defn.label} (Lv.${curLevel}/${defn.max})</div>
+               <div class="card-desc">${esc(defn.desc)}</div>
+               <div class="card-stat">${maxed ? '🌟 MAKSIMUM' : `Biaya: ${cost} Poin Warisan`}</div>`
+      };
+    });
+    items.push({ value: '__back__', html: `<div class="card-title">↩️ Kembali ke Menu Utama</div>`, cls: 'danger' });
+
+    const ch = await chooseCards('🕯️ ALTAR WARISAN LELUHUR', header, items);
+    if (ch === '__back__') break;
+    const defn = LEGACY_UPGRADES[ch];
+    const curLevel = legacy.levels[ch] || 0;
+    if (curLevel >= defn.max) { msg = 'Warisan ini sudah mencapai level maksimum!'; continue; }
+    const cost = legacyUpgradeCost(defn, curLevel);
+    if (legacy.points < cost) { msg = 'Poin Warisan tidak cukup!'; continue; }
+    legacy.points -= cost;
+    legacy.levels[ch] = curLevel + 1;
+    saveLegacy(legacy);
+    msg = `${defn.label} naik ke Level ${curLevel + 1}! Bonus ini akan berlaku untuk pahlawan barumu berikutnya.`;
+  }
+}
+
 function loadGameFromData(d) {
   try {
     const p = new Player(d.name, d.race_key || '1', '1', d.equipped_weapon);
@@ -2538,7 +2668,9 @@ async function createCharacter() {
   ]);
 
   applyClassTheme(BASE_CLASSES[cChoice].name);
-  return new Player(name, rChoice, cChoice, INITIAL_WEAPONS[wChoice], bonusStats, diffChoice);
+  const newPlayer = new Player(name, rChoice, cChoice, INITIAL_WEAPONS[wChoice], bonusStats, diffChoice);
+  applyLegacyBonusToPlayer(newPlayer);
+  return newPlayer;
 }
 
 /* ============================================================
@@ -2638,7 +2770,7 @@ async function triggerStoryOrEvent(player, floor) {
 /* ============================================================
    ENDING
    ============================================================ */
-async function showGameEnding(player) {
+async function showGameEnding(player, legacyEarned) {
   const hasAllSeals = player.inventory.filter(x => x === 'Pecahan Segel Eldoria').length >= 2;
   const hasTruth = player.quest_flags.includes('kael_truth') || player.quest_flags.includes('elara_whisper');
 
@@ -2673,6 +2805,9 @@ async function showGameEnding(player) {
     desc = 'Naga Ignis berhasil dikalahkan dan gerbang kegelapan tertutup rapat. Namamu diukir dengan emas di gerbang utama kerajaan sebagai Pahlawan Terbesar Sepanjang Masa. Namun di kedalaman terdalam, bisikan misterius mengingatkan bahwa petualangan sejati tak pernah usai.';
   }
   body += `<p class="ending-title">${title}</p><p class="storytext">${esc(desc)}</p>`;
+  if (legacyEarned) {
+    body += `${divider()}<p class="win-title">🕯️ +${legacyEarned} Poin Warisan diperoleh!</p><p class="statline">Belanjakan di Altar Warisan Leluhur (menu utama) untuk memberi bonus abadi pada pahlawan berikutnya.</p>`;
+  }
   render(box('🏆 EPILOG PENAKLUKAN 50 LANTAI 🏆', body));
   await choose([{ label: '🔄 Mulai Petualangan Baru', value: true, cls: 'primary' }]);
 }
@@ -2682,10 +2817,16 @@ async function showGameEnding(player) {
    ============================================================ */
 async function mainGame() {
   updateHud(null);
-  render(box('🏰 ELDORIA RPG: 50 FLOORS OF ABYSS 🏰', `<p>Sebuah petualangan text-RPG epik menuruni 50 lantai Labirin Abyss.</p>`));
+  const legacyPreview = loadLegacy();
+  let introBody = `<p>Sebuah petualangan text-RPG epik menuruni 50 lantai Labirin Abyss.</p>`;
+  if (legacyPreview.lifetime > 0) {
+    introBody += `<p class="statline">🕯️ Poin Warisan tersedia: ${legacyPreview.points} (lifetime: ${legacyPreview.lifetime})</p>`;
+  }
+  render(box('🏰 ELDORIA RPG: 50 FLOORS OF ABYSS 🏰', introBody));
   const startOpts = [{ label: '⚔️ Mulai Petualangan Baru', value: '1', cls: 'primary' }];
   if (hasLocalStorageSave()) startOpts.push({ label: '💾 Lanjutkan Game (Local Storage)', value: '2', cls: 'primary' });
   startOpts.push({ label: '📁 Muat dari File Save (.json)', value: '3' });
+  startOpts.push({ label: '🕯️ Altar Warisan Leluhur', value: '4' });
   startOpts.push({ label: '🚪 Keluar', value: '0', cls: 'danger' });
   const startCh = await choose(startOpts);
 
@@ -2693,6 +2834,9 @@ async function mainGame() {
   if (startCh === '0') {
     render(box(null, '<p class="storytext">Sampai jumpa di petualangan berikutnya!</p>'));
     return;
+  } else if (startCh === '4') {
+    await legacyAltarMenu();
+    return mainGame();
   } else if (startCh === '2' || startCh === '3') {
     const d = startCh === '2' ? loadGameFromLocalStorage() : await pickSaveFile();
     if (d) {
@@ -2734,16 +2878,26 @@ async function mainGame() {
 
     let actions;
     if (bossPending) {
+      const hpRatio = player.max_hp > 0 ? player.hp / player.max_hp : 1;
+      const isCriticalHp = hpRatio <= 0.30;
       body += ``;
       body += `<p class="boss-name">👹 BOSS: ${esc(bossInfo.name)}</p>`;
       body += `<p class="storytext">📜 ${esc(bossInfo.intro)}</p>`;
+      if (isCriticalHp) {
+        body += `<p class="boss-warn">💔 HP KAMU KRITIS (${player.hp}/${player.max_hp})! Mundur dan pulihkan diri dulu di kamp... atau pertaruhkan segalanya demi hadiah yang jauh lebih besar.</p>`;
+      }
       actions = [
         { label: '⚔️ TANTANG PERTEMPURAN BOSS!', value: '1', cls: 'primary' },
+      ];
+      if (isCriticalHp) {
+        actions.push({ label: '⚠️ GAMBIT NEKAT: Serbu Sekarang Meski Sekarat (+35% Gold & EXP jika menang)', value: '7', cls: 'danger' });
+      }
+      actions.push(
         { label: '⛺ Istirahat di Kamp (25G)', value: '2' },
         { label: '🏬 Toko, Pandai Besi & Crafting', value: '3' },
         { label: '🎒 Buka Tas / Inventori', value: '4' },
         { label: '💾 Simpan Game', value: '5' },
-      ];
+      );
       if (player.isHell) actions.push({ label: '🕳️ Sarang Monster (Grinding Strategis)', value: '6' });
     } else {
       body += `<p>Pilih tindakanmu:</p>`;
@@ -2779,6 +2933,27 @@ async function mainGame() {
         } else {
           if (player.hp <= 0) break;
           logMsg = 'Berhasil mundur dari ruang Boss.';
+        }
+      } else if (act === '7') {
+        const b = bossInfo;
+        const gambitEnemy = makeEnemy(b.name, b.hp, b.atk, b.def, Math.floor(b.exp * 1.35), Math.floor(b.gold * 1.35), b.loot, true);
+        render(box('⚠️ GAMBIT NEKAT', `<p class="storytext">Dengan HP tersisa hanya ${player.hp}/${player.max_hp}, kamu nekat menyerbu ${esc(b.name)} tanpa sempat pulih. Taruhannya besar — kemenangan berarti hadiah berlipat ganda, tapi kekalahan bisa berarti akhir dari segalanya.</p>`));
+        await continueBtn('Serbu Sekarang ➜');
+        const won = await battle(player, gambitEnemy, player.current_floor);
+        if (won) {
+          logMsg = `🎉🔥 GAMBIT NEKAT BERHASIL! ${b.name} tumbang meski kamu bertarung sekarat, hadiah berlipat ganda!`;
+          if (player.current_floor === MAX_FLOORS) break;
+          player.current_floor += 1;
+          player.explore_count = 0;
+          if (player.isHell) player.hell_prepared_floor = 0;
+          if (STORY_DATA[player.current_floor]) {
+            render(box(null, `<p class="storytext">${nl2br(STORY_DATA[player.current_floor])}</p>`));
+            await continueBtn('Melangkah Maju ➜');
+          }
+          logMsg = `Menjejakkan kaki di Lantai ${player.current_floor}!`;
+        } else {
+          if (player.hp <= 0) break;
+          logMsg = 'Gambit nekat gagal — kamu berhasil mundur dengan sisa HP yang tersisa.';
         }
       } else if (act === '2') {
         if (player.gold >= 25) { player.gold -= 25; player.hp = player.max_hp; player.mp = player.max_mp; player.poison_turns = 0; logMsg = 'Istirahat selesai. HP & MP dipulihkan penuh!'; }
@@ -2877,14 +3052,19 @@ async function mainGame() {
 
   if (player.hp <= 0) {
     updateHud(null);
+    const earned = grantLegacyPoints(player);
     render(box('💀 KEMATIAN PAHLAWAN 💀', `
       <p>💀💀 KEMATIAN PAHLAWAN DI LANTAI ${player.current_floor} 💀💀</p>
       <p>${esc(player.name)} sang ${esc(player.class_name)} telah gugur dalam kegelapan Abyss.</p>
       <p>Kerajaan Eldoria runtuh ditelan amukan monster purba...</p>
+      ${divider()}
+      <p class="win-title">🕯️ +${earned} Poin Warisan diperoleh!</p>
+      <p class="statline">Kekuatan ${esc(player.name)} tidak sia-sia — pahlawan berikutnya akan mewarisi sebagian kekuatannya lewat Altar Warisan Leluhur di menu utama.</p>
     `));
     await choose([{ label: '🔄 Mulai Petualangan Baru', value: true, cls: 'primary' }]);
   } else {
-    await showGameEnding(player);
+    const earned = grantLegacyPoints(player);
+    await showGameEnding(player, earned);
     updateHud(null);
   }
 }
