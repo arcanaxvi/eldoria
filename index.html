@@ -1571,6 +1571,114 @@ function renderBattleScreen(player, enemy, floor, msg) {
   render(box(null, html));
 }
 
+/* ============================================================
+   PUZZLE PICKLOCK PETI HARTA
+   Dipakai setiap kali menemukan peti — entah di koridor biasa
+   maupun rampasan boss. Pemain harus menekan tiap pin gembok
+   dengan tekanan yang tepat. DEX memberi sedikit toleransi
+   kesalahan ekstra. Gagal total = gembok macet, hanya dapat
+   sebagian kecil hadiah "konsolasi".
+   ============================================================ */
+async function pickLockPuzzle(player, pinCount, chestLabel) {
+  const dexBonus = Math.floor((player.DEX || 0) / 10);
+  const maxMistakes = 2 + dexBonus;
+  let mistakes = 0;
+
+  render(box(`🔐 ${chestLabel}`, `
+    <p class="storytext">Gemboknya dipenuhi mekanisme pin kuno. Gunakan jepit rambut curianmu untuk merasakan tekanan tiap pin sebelum menekannya ke posisi yang tepat.</p>
+    <p class="statline">🔧 Jumlah Pin: ${pinCount} | ❌ Toleransi Kesalahan: ${maxMistakes}${dexBonus > 0 ? ` (bonus DEX +${dexBonus})` : ''}</p>
+  `));
+  await continueBtn('Mulai Membongkar Gembok ➜');
+
+  for (let p = 1; p <= pinCount; p++) {
+    const optLabels = ['🔧 Tekanan Ringan', '🔧 Tekanan Sedang', '🔧 Tekanan Kuat'];
+    const correct = ri(0, optLabels.length - 1);
+    let solved = false;
+    while (!solved) {
+      render(box(null, `
+        <p class="storytext">Pin ${p}/${pinCount} — rasakan getaran jarum pengait di dalam gembok...</p>
+        <p class="statline">❌ Kesalahan: ${mistakes}/${maxMistakes}</p>
+      `));
+      const idx = await choose(optLabels.map((l, i) => ({ label: l, value: i })));
+      if (idx === correct) {
+        solved = true;
+        render(box(null, `<p>✅ *Klik!* Pin ${p} berhasil ditekan ke posisi yang tepat!</p>`));
+        await continueBtn(p === pinCount ? 'Lanjut ➜' : 'Lanjut ke Pin Berikutnya ➜');
+      } else {
+        mistakes += 1;
+        if (mistakes > maxMistakes) {
+          render(box(null, `<p>💥 Jepit rambutmu PATAH! Mekanisme gembok macet total sebelum sempat terbuka penuh.</p>`));
+          await continueBtn('Lanjutkan ➜');
+          return false;
+        }
+        render(box(null, `<p>❌ Jepit rambut tergelincir, tekanan pin belum pas. Kamu mencoba merasakannya lagi...</p>`));
+        await continueBtn('Coba Lagi ➜');
+      }
+    }
+  }
+  render(box(null, `<p class="win-title">🔓 GEMBOK TERBUKA! Peti berhasil dibongkar sepenuhnya!</p>`));
+  await continueBtn('Buka Peti ➜');
+  return true;
+}
+
+/* ============================================================
+   PETI RAMPASAN BOSS
+   Setiap boss (mini-boss maupun boss zona) yang tumbang selalu
+   meninggalkan peti besi berlapis rune. Gemboknya lebih rumit
+   (lebih banyak pin) daripada peti biasa di koridor, tapi
+   hadiahnya juga jauh lebih besar: gold ekstra, material bonus,
+   potion, bahkan peluang tambahan item legendaris.
+   ============================================================ */
+async function handleBossChest(player, floor, enemy) {
+  const zone = getZoneInfo(floor);
+  const zId = zone.id;
+  const isMajorBoss = (floor % 10 === 0);
+  const pinCount = isMajorBoss ? 5 : 4;
+
+  render(box('📦 PETI RAMPASAN BOSS 📦', `<p class="storytext">Di balik reruntuhan sarang ${esc(enemy.name)}, tersembunyi sebuah peti besi besar berlapis rune pelindung — gemboknya jauh lebih rumit daripada peti biasa di koridor.</p>`));
+  await continueBtn('Coba Bongkar Peti ➜');
+
+  const opened = await pickLockPuzzle(player, pinCount, 'PETI RAMPASAN BOSS');
+  const goldFound = ri(150, 350) * zId * (isMajorBoss ? 2 : 1);
+
+  if (opened) {
+    player.gold += goldFound;
+    let out = `<p class="win-title">🎉 Peti terbuka penuh! +${goldFound} Gold!</p>`;
+    if (enemy.loot_drop) {
+      player.inventory.push(enemy.loot_drop);
+      out += `<p>📦 Material tambahan dari dalam peti: [${esc(enemy.loot_drop)}]</p>`;
+    }
+    player.potions += 2;
+    out += `<p>🧪 +2 Potion HP dari perbekalan peti!</p>`;
+
+    const bonusLegendChance = isMajorBoss ? 0.15 : 0.08;
+    const legendPool = LEGENDARY_LOOT[zId];
+    if (legendPool && rf() < bonusLegendChance) {
+      const rollType = choiceArr(['weapon', 'armor', 'skill']);
+      if (rollType === 'weapon') {
+        const lw = Object.assign({}, legendPool.weapon);
+        player.weapon_loot.push(lw);
+        out += `<p class="win-title">🌟💎 BONUS PETI! Senjata Legendaris [${esc(lw.name)}] ditemukan!</p>`;
+      } else if (rollType === 'armor') {
+        const la = Object.assign({}, legendPool.armor);
+        player.armor_loot.push(la);
+        out += `<p class="win-title">🌟💎 BONUS PETI! Zirah Legendaris [${esc(la.name)}] ditemukan!</p>`;
+      } else {
+        const ls = Object.assign({}, legendPool.skill);
+        player.skill_loot.push(ls);
+        out += `<p class="win-title">🌟💎 BONUS PETI! Gulungan Skill Legendaris [${esc(ls.name)}] ditemukan!</p>`;
+      }
+    }
+    render(box(null, out));
+  } else {
+    const consolation = Math.floor(goldFound * 0.2);
+    player.gold += consolation;
+    render(box(null, `<p>Gembok peti terlalu rumit — kamu hanya berhasil mengorek celah kecil dan mendapat +${consolation} Gold sebelum menyerah.</p>`));
+  }
+  updateHud(player);
+  await continueBtn('Lanjutkan ➜');
+}
+
 async function battle(player, enemy, floor) {
   let msg = `⚠️ Musuh muncul: ${enemy.name}!`;
   if (enemy.is_boss) {
@@ -1799,6 +1907,10 @@ async function battle(player, enemy, floor) {
       render(box(null, out));
       updateHud(player);
       await continueBtn('Lanjutkan ➜');
+
+      if (enemy.is_boss) {
+        await handleBossChest(player, floor, enemy);
+      }
 
       for (const ev of expRes.events) {
         render(box('🎉🎉 LEVEL UP! 🎉🎉', `
@@ -2739,11 +2851,21 @@ async function triggerStoryOrEvent(player, floor) {
     await continueBtn('Lanjutkan ➜');
     return true;
   } else if (roll < 0.35) {
+    render(box('📦 PETI HARTA TERSEMBUNYI! 📦', `<p class="storytext">Kamu menemukan sebuah peti kuno tersembunyi di balik reruntuhan, namun gemboknya masih utuh terkunci rapat.</p>`));
+    await continueBtn('Coba Bongkar Gemboknya ➜');
+
+    const opened = await pickLockPuzzle(player, 3, 'PETI HARTA TERSEMBUNYI');
     const goldFound = ri(40, 90) * zone.id;
-    player.gold += goldFound;
-    let extra = '';
-    if (rf() < 0.40) { player.potions += 1; extra = '<p>🧪 Mendapatkan tambahan +1 Potion HP!</p>'; }
-    render(box('📦 PETI HARTA TERSEMBUNYI! 📦', `<p>Kamu membongkar peti kuno dan menemukan +${goldFound} Gold!</p>${extra}`));
+    if (opened) {
+      player.gold += goldFound;
+      let extra = '';
+      if (rf() < 0.40) { player.potions += 1; extra = '<p>🧪 Mendapatkan tambahan +1 Potion HP!</p>'; }
+      render(box(null, `<p>Kamu meraup isi peti dan menemukan +${goldFound} Gold!</p>${extra}`));
+    } else {
+      const consolation = Math.floor(goldFound * 0.25);
+      player.gold += consolation;
+      render(box(null, `<p>Peti tetap tertutup rapat, namun kamu berhasil mengais +${consolation} Gold dari celah yang retak sebelum menyerah.</p>`));
+    }
     updateHud(player);
     await continueBtn('Lanjutkan ➜');
     return true;
