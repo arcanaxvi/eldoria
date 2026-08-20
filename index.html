@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Eldoria RPG — 50 Floors of Abyss</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg-0:#0b0b12; --bg-1:#14141f; --bg-2:#1c1c2b; --bg-3:#242438;
@@ -822,6 +825,226 @@ body[class*="class-theme-"] .stat-bar.mana .fill {
 body[class*="class-theme-"] .bar-label {
   background: none !important;
 }
+</style>
+
+<style id="eldoria-retro-mystery-vibe">
+/* =========================================================
+   ELDORIA — RETRO • MISTERIUS VIBE LAYER
+   Lapisan tambahan murni visual (font, animasi, cahaya).
+   Tidak menyentuh markup/logic — aman untuk gameplay.
+   ========================================================= */
+
+:root{
+  --font-retro-title: 'Press Start 2P', cursive;
+  --font-retro-ui: 'VT323', monospace;
+  --scan-op: .16;
+}
+
+/* ---------- 1. Tipografi ala arcade tua ---------- */
+header.game-header h1{
+  font-family: var(--font-retro-title);
+  font-size: clamp(.72rem, 3.4vw, 1.25rem);
+  line-height: 1.7;
+  letter-spacing: 2px;
+  animation: eldoriaTitleFlicker 4.2s infinite;
+}
+@media (max-width:480px){
+  header.game-header h1{ font-size: clamp(.6rem, 4vw, .9rem); letter-spacing:1.4px; }
+}
+
+.panel h2, .zone-name, .boss-name, .hud-name, .battle-title,
+.ending-title, .win-title, .card-title, button.card-btn .card-title,
+.select-card .card-title, .btn{
+  font-family: var(--font-retro-ui);
+  letter-spacing: .6px;
+}
+.panel h2{ font-size: 1.28rem; }
+.hud-name{ font-size: 1.15rem; }
+.card-title{ font-size: 1.02rem; }
+.boss-name{ font-size: 1.35rem !important; }
+.zone-name{ font-size: 1.15rem !important; }
+.btn{ font-size: 1rem; }
+button.card-btn .card-title{ font-size: 1.05rem; }
+
+/* Neon sign flicker pada judul utama */
+@keyframes eldoriaTitleFlicker{
+  0%,19%,21%,23%,54%,56%,100%{
+    opacity:1;
+    text-shadow:
+      0 0 4px rgba(242,213,138,.9),
+      0 0 12px rgba(242,213,138,.65),
+      0 0 26px rgba(215,173,85,.5),
+      0 2px 18px rgba(215,173,85,.3);
+  }
+  20%,22%,55%{
+    opacity:.5;
+    text-shadow:none;
+  }
+}
+
+/* ---------- 2. Overlay scanline CRT (layar tua misterius) ---------- */
+body::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:5;
+  background-image:repeating-linear-gradient(
+    to bottom,
+    rgba(0,0,0,.5) 0px,
+    rgba(0,0,0,.5) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  opacity:var(--scan-op);
+  mix-blend-mode:overlay;
+  animation: eldoriaScanDrift 9s linear infinite;
+}
+@keyframes eldoriaScanDrift{
+  0%{ background-position:0 0; }
+  100%{ background-position:0 120px; }
+}
+
+/* Kedipan daya layar tua, sangat halus */
+#app{ animation: eldoriaCrtFlicker 6.5s infinite; }
+@keyframes eldoriaCrtFlicker{
+  0%,100%{ filter:brightness(1); }
+  92%{ filter:brightness(1); }
+  93%{ filter:brightness(.94); }
+  94%{ filter:brightness(1.02); }
+  95%{ filter:brightness(.97); }
+  96%{ filter:brightness(1); }
+}
+
+/* ---------- 3. Kabut misterius melayang di balik konten ---------- */
+#app{ position:relative; }
+#app::before{
+  content:"";
+  position:absolute;
+  inset:-60px -24px;
+  pointer-events:none;
+  z-index:-1;
+  background:
+    radial-gradient(320px 220px at 12% 8%, rgba(120,80,40,.14), transparent 70%),
+    radial-gradient(260px 200px at 88% 26%, rgba(90,60,110,.10), transparent 70%),
+    radial-gradient(300px 240px at 45% 95%, rgba(60,40,20,.13), transparent 70%);
+  filter:blur(8px);
+  animation: eldoriaFogDrift 24s ease-in-out infinite alternate;
+}
+@keyframes eldoriaFogDrift{
+  0%{ transform:translate(0,0); }
+  100%{ transform:translate(20px,-16px); }
+}
+
+/* Percikan debu/api kecil melayang di seluruh layar */
+html::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:1;
+  opacity:.28;
+  mix-blend-mode:screen;
+  background-image:
+    radial-gradient(1.6px 1.6px at 8% 22%, rgba(224,182,76,.9), transparent 60%),
+    radial-gradient(1.6px 1.6px at 78% 12%, rgba(224,182,76,.7), transparent 60%),
+    radial-gradient(1.3px 1.3px at 32% 68%, rgba(224,182,76,.8), transparent 60%),
+    radial-gradient(1.6px 1.6px at 62% 84%, rgba(224,182,76,.6), transparent 60%),
+    radial-gradient(1.3px 1.3px at 90% 58%, rgba(224,182,76,.75), transparent 60%),
+    radial-gradient(1.3px 1.3px at 47% 38%, rgba(224,182,76,.55), transparent 60%);
+  animation: eldoriaEmberDrift 20s ease-in-out infinite alternate,
+             eldoriaEmberTwinkle 3.2s ease-in-out infinite;
+}
+@keyframes eldoriaEmberDrift{
+  0%{ background-position:0 0,0 0,0 0,0 0,0 0,0 0; }
+  100%{ background-position:-30px -50px,20px -60px,-24px 40px,30px 30px,-18px -20px,16px 26px; }
+}
+@keyframes eldoriaEmberTwinkle{
+  0%,100%{ opacity:.2; }
+  50%{ opacity:.4; }
+}
+
+/* ---------- 4. Nama boss — kedipan glitch misterius ---------- */
+.boss-name{
+  display:inline-block;
+  animation: eldoriaBossGlitch 3s infinite;
+}
+@keyframes eldoriaBossGlitch{
+  0%,92%,100%{ text-shadow:0 0 10px rgba(215,173,85,.35); transform:translateX(0); }
+  93%{ text-shadow:-2px 0 #c94b4b, 2px 0 #4c78a8; transform:translateX(-1px); }
+  94%{ text-shadow:2px 0 #c94b4b, -2px 0 #4c78a8; transform:translateX(1px); }
+  95%{ text-shadow:0 0 10px rgba(215,173,85,.35); transform:translateX(0); }
+}
+
+/* ---------- 5. Bar HP/MP/Enemy — kilau berjalan ---------- */
+.bar-fill{ position:relative; overflow:hidden; }
+.bar-fill::after{
+  content:"";
+  position:absolute; inset:0;
+  background:linear-gradient(100deg, transparent 0%, rgba(255,255,255,.4) 45%, transparent 60%);
+  transform:translateX(-120%);
+  animation: eldoriaBarShimmer 2.8s ease-in-out infinite;
+}
+@keyframes eldoriaBarShimmer{
+  0%{ transform:translateX(-120%); }
+  60%,100%{ transform:translateX(220%); }
+}
+
+/* ---------- 6. Tombol ala arcade: sapuan cahaya + tekan retro ---------- */
+.btn, button.card-btn, .select-card{
+  position:relative;
+  overflow:hidden;
+}
+.btn::before, button.card-btn::before{
+  content:"";
+  position:absolute;
+  top:0; left:-60%;
+  width:35%; height:100%;
+  background:linear-gradient(120deg, transparent, rgba(255,255,255,.16), transparent);
+  transform:skewX(-20deg);
+  transition:left .5s ease;
+  pointer-events:none;
+}
+.btn:hover::before, button.card-btn:hover::before{ left:140%; }
+.btn:active{ transform:translateY(1px) scale(.98); filter:brightness(.92); }
+
+.btn.primary{ animation: eldoriaPrimaryPulse 2.4s ease-in-out infinite; }
+@keyframes eldoriaPrimaryPulse{
+  0%,100%{ box-shadow:0 3px 8px rgba(0,0,0,.25), 0 0 0 rgba(215,173,85,0); }
+  50%{ box-shadow:0 3px 8px rgba(0,0,0,.25), 0 0 16px rgba(215,173,85,.5); }
+}
+
+/* ---------- 7. Vinyet misterius — bernapas pelan ---------- */
+body::before{ animation: eldoriaVignettePulse 7s ease-in-out infinite; }
+@keyframes eldoriaVignettePulse{
+  0%,100%{ box-shadow: inset 0 0 110px 35px rgba(0,0,0,.72); }
+  50%{ box-shadow: inset 0 0 150px 55px rgba(0,0,0,.85); }
+}
+
+/* ---------- 8. Kursor berkedip ala terminal tua di akhir narasi ---------- */
+.storytext::after{
+  content:"▍";
+  display:inline-block;
+  margin-left:4px;
+  color:var(--gold-bright,var(--gold));
+  animation: eldoriaCaretBlink 1s steps(1) infinite;
+}
+@keyframes eldoriaCaretBlink{
+  0%,49%{ opacity:1; }
+  50%,100%{ opacity:0; }
+}
+
+/* ---------- 9. Masuk panel: materialisasi retro (bukan cuma fade) ---------- */
+.panel{
+  animation: eldoriaPanelMaterialize .38s ease both;
+}
+@keyframes eldoriaPanelMaterialize{
+  0%{ opacity:0; transform:translateY(8px) scale(.985); filter:blur(2px); }
+  60%{ opacity:1; filter:blur(0); }
+  100%{ opacity:1; transform:translateY(0) scale(1); }
+}
+
+/* Hormati preferensi kurangi gerak (mengikuti aturan global yang sudah ada) */
 </style>
 
 </head>
