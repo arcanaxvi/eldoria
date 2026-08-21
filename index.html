@@ -1091,6 +1091,73 @@ body::before{ animation: eldoriaVignettePulse 7s ease-in-out infinite; }
 .flip-card.matched .flip-card-front{border-color:var(--gold);box-shadow:0 0 12px rgba(224,182,76,.35);}
 </style>
 
+<style id="eldoria-battle-minigame-widgets">
+/* ---------- Umum ---------- */
+.mg-hint{text-align:center;color:var(--text-dim);font-size:.78rem;margin-top:4px;}
+.mg-tierbadge{text-align:center;font-weight:700;font-size:.95rem;margin-top:8px;}
+
+/* ---------- 1) Serangan Waktu (timing bar dua zona) ---------- */
+.mg-track{position:relative;height:38px;background:var(--bg-3);border:1px solid var(--border);border-radius:19px;margin:16px 4px 6px;overflow:hidden;}
+.mg-zone-good{position:absolute;top:0;bottom:0;background:rgba(224,182,76,0.22);}
+.mg-zone-perfect{position:absolute;top:0;bottom:0;background:rgba(224,182,76,0.65);border-left:2px solid #fff;border-right:2px solid #fff;}
+.mg-needle{position:absolute;top:2px;bottom:2px;width:8px;border-radius:4px;background:var(--primary-light,var(--primary));box-shadow:0 0 10px var(--primary);}
+.mg-act-btn-wrap{text-align:center;margin:12px 0 4px;}
+.mg-act-btn-wrap .btn{min-width:170px;font-size:.95rem;}
+
+/* ---------- 2) Tahan & Lepas (charge meter) ---------- */
+.mg-charge-track{position:relative;height:34px;background:var(--bg-3);border:1px solid var(--border);border-radius:17px;margin:16px 4px 6px;overflow:hidden;}
+.mg-charge-fill{position:absolute;left:0;top:0;bottom:0;width:0%;background:linear-gradient(90deg,#8a5cf0,#e0b64c);}
+.mg-charge-zone{position:absolute;top:0;bottom:0;background:rgba(255,255,255,0.18);border-left:2px dashed #fff;border-right:2px dashed #fff;}
+
+/* ---------- 3) Mash tombol ---------- */
+.mg-mash-track{position:relative;height:30px;background:var(--bg-3);border:1px solid var(--border);border-radius:15px;margin:16px 4px 10px;overflow:hidden;}
+.mg-mash-fill{position:absolute;left:0;top:0;bottom:0;width:0%;background:linear-gradient(90deg,#c94b4b,#e0b64c);transition:width .07s linear;}
+.mg-mash-btn-wrap{text-align:center;margin:6px 0 4px;}
+.mg-mash-btn-wrap .btn{min-width:190px;font-size:1.05rem;padding:18px;}
+
+/* ---------- 4) Ritme berantai (multi-hit) ---------- */
+.mg-rhythm-track{position:relative;height:38px;background:var(--bg-3);border:1px solid var(--border);border-radius:19px;margin:16px 4px 6px;overflow:hidden;}
+
+/* ---------- 5) Target Reflex ---------- */
+.mg-reflex-field{position:relative;height:190px;background:var(--bg-3);border:1px solid var(--border);border-radius:12px;margin:16px 0 6px;overflow:hidden;}
+.mg-reflex-target{position:absolute;width:48px;height:48px;border-radius:50%;background:radial-gradient(circle,#ffdd82,#8a6f2f);border:2px solid var(--gold);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.3rem;animation:mgPop .12s ease;user-select:none;}
+@keyframes mgPop{from{transform:scale(.35);opacity:.3;}to{transform:scale(1);opacity:1;}}
+
+/* ---------- 6) Bidik Titik Lemah ---------- */
+.mg-aim-field{position:relative;height:170px;background:var(--bg-3);border:1px solid var(--border);border-radius:12px;margin:16px 0 6px;overflow:hidden;}
+.mg-aim-weakpoint{position:absolute;width:58px;height:58px;border-radius:50%;background:rgba(201,75,75,.28);border:2px solid var(--red);display:flex;align-items:center;justify-content:center;font-size:1.4rem;}
+.mg-aim-reticle{position:absolute;width:34px;height:34px;border-radius:50%;border:3px solid var(--gold);box-shadow:0 0 10px var(--gold);pointer-events:none;transform:translate(-50%,-50%);}
+.mg-aim-btn-wrap{text-align:center;margin:10px 0 4px;}
+
+/* ---------- 7) Kombo Rune Cepat (whack real-time) ---------- */
+.mg-rune-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;max-width:300px;margin:16px auto 6px;}
+.mg-rune-pad{aspect-ratio:1/1;border-radius:12px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.6rem;cursor:pointer;opacity:.5;transition:all .1s ease;background:var(--bg-3);user-select:none;}
+.mg-rune-pad.lit{opacity:1;transform:scale(1.08);box-shadow:0 0 20px var(--gold);border-color:var(--gold);}
+.mg-rune-pad.disabled{pointer-events:none;}
+
+/* ---------- 8) Hindari Proyektil (dodge, drag soul) ---------- */
+.mg-dodge-field{position:relative;height:220px;background:var(--bg-3);border:1px solid var(--border);border-radius:12px;margin:16px 0 6px;overflow:hidden;touch-action:none;cursor:grab;}
+.mg-dodge-soul{position:absolute;bottom:10px;width:22px;height:22px;border-radius:6px;background:var(--gold);box-shadow:0 0 10px var(--gold);transform:translateX(-50%);transition:box-shadow .15s ease;}
+.mg-dodge-soul.hit{background:var(--red);box-shadow:0 0 16px var(--red);}
+.mg-dodge-bullet{position:absolute;top:-16px;width:15px;height:15px;border-radius:50%;background:var(--red);box-shadow:0 0 8px var(--red);}
+.mg-dodge-hearts{text-align:center;font-size:1rem;margin-top:4px;letter-spacing:3px;}
+
+/* ---------- 9) Parry Sempurna (klik saat cincin menyatu) ---------- */
+.mg-parry-wrap{display:flex;justify-content:center;margin:16px 0 4px;}
+.mg-parry-field{position:relative;width:170px;height:170px;}
+.mg-parry-outer{position:absolute;inset:0;border-radius:50%;border:3px solid var(--border);}
+.mg-parry-target{position:absolute;left:50%;top:50%;border-radius:50%;border:3px solid var(--gold);}
+.mg-parry-shrink{position:absolute;left:50%;top:50%;border-radius:50%;border:3px solid var(--red);}
+
+/* ---------- 10) Baris Bertahan (memory guard 3 lajur) ---------- */
+.mg-guard-lanes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:320px;margin:16px auto 6px;}
+.mg-guard-lane{aspect-ratio:1/1;border-radius:12px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.5rem;cursor:pointer;opacity:.55;transition:all .12s ease;background:var(--bg-3);user-select:none;}
+.mg-guard-lane.telegraph{opacity:1;transform:scale(1.05);box-shadow:0 0 18px var(--red);border-color:var(--red);}
+.mg-guard-lane.correct{border-color:#8fd67a;box-shadow:0 0 16px #8fd67a;}
+.mg-guard-lane.wrong{border-color:var(--red);box-shadow:0 0 16px var(--red);}
+.mg-guard-lane.disabled{pointer-events:none;}
+</style>
+
 </head>
 <body>
 <div id="app">
@@ -1100,7 +1167,7 @@ body::before{ animation: eldoriaVignettePulse 7s ease-in-out infinite; }
   </header>
   <div id="hud" class="hidden"></div>
   <div id="screen"></div>
-  <footer>Eldoria RPG · HTML/JavaScript tunggal · Mode Neraka: Sarang Monster → Grinding Opsional → Dungeon Neraka</footer>
+  <footer>Eldoria RPG · HTML/JavaScript tunggal · Mode Neraka: Sarang Monster (Opsional) → Dungeon Neraka</footer>
 </div>
 
 <script id="gamedata" type="application/json">
@@ -1235,7 +1302,6 @@ class Player {
     /* Mode Neraka: resource hasil grinding untuk mempersiapkan
        diri sebelum memasuki koridor Dungeon Neraka. */
     this.hell_grind = 0;
-    this.hell_prepared_floor = 0;
   }
 
   get atk() {
@@ -1489,7 +1555,7 @@ function updateHud(player) {
     ${player.isHell ? `
       <div class="hud-row" style="margin-top:7px;margin-bottom:0;">
         <span class="hud-tag">🩸 Persiapan Abyss</span>
-        <span class="hud-gold">${player.hell_grind}/${getHellGrindRequirement(player.current_floor)} poin ${player.hell_prepared_floor === player.current_floor ? '✅ SIAP' : '⚠️ BELUM SIAP'}</span>
+        <span class="hud-gold">${player.hell_grind} poin • rekomendasi ${getHellGrindRequirement(player.current_floor)}</span>
       </div>` : ''}
   `;
 }
@@ -1987,6 +2053,540 @@ async function handleBossChest(player, floor, enemy) {
   await continueBtn('Lanjutkan ➜');
 }
 
+/* ============================================================
+   MEKANIK PERTARUNGAN INTERAKTIF — 10 MINIGAME BERGAYA
+   UNDERTALE / DELTARUNE
+   ------------------------------------------------------------
+   Setiap giliran menyerang / bertahan / memakai skill TIDAK
+   hanya menekan tombol pilihan — pemain harus benar-benar
+   berinteraksi secara real-time (timing, drag, klik cepat,
+   tahan-lepas, mengingat pola) untuk menentukan seberapa besar
+   kerusakan yang dihasilkan atau seberapa efektif bertahan.
+
+   6 mekanik SERANGAN (dipilih acak tiap giliran):
+     1. mgTimingStrike  — penanda bolak-balik, tekan di zona emas
+     2. mgHoldCharge    — tahan tombol, lepas di zona putih
+     3. mgMashButton    — pukul tombol secepat mungkin
+     4. mgRhythmCombo   — 3 ketukan berirama berturut-turut
+     5. mgReflexTargets — ketuk 5 target cahaya sebelum lenyap
+     6. mgAimReticle    — bidik titik lemah yang bergerak
+   1 mekanik SKILL:
+     7. mgRuneCombo     — ketuk rune yang menyala secara acak
+   3 mekanik BERTAHAN (dipilih acak):
+     8. mgBulletDodge   — gerakkan soul menghindari proyektil
+     9. mgParryQTE      — tekan PARRY saat cincin berhimpit
+    10. mgMemoryGuard   — ingat & blokir urutan arah serangan
+   ============================================================ */
+function clampNum(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+function mgFinish(wrap, resultEl, label, resultObj, resolve) {
+  resultEl.className = 'mg-tierbadge';
+  resultEl.textContent = label;
+  const endWrap = document.createElement('div');
+  endWrap.className = 'btnrow';
+  const b = document.createElement('button');
+  b.className = 'btn primary';
+  b.textContent = 'Lanjutkan ➜';
+  b.onclick = () => { wrap.remove(); resolve(resultObj); };
+  endWrap.appendChild(b);
+  appendEl(endWrap);
+}
+
+/* --- 1) Serangan Waktu --- */
+function mgTimingStrike(player, enemy) {
+  return new Promise(resolve => {
+    render(box('⚔️ Serangan Waktu', `<p class="storytext">Penanda bergerak bolak-balik. Tekan SERANG tepat saat berada di zona bercahaya untuk kerusakan maksimal!</p>`));
+    const dexBonus = Math.min(10, Math.floor((player.DEX || 0) / 8));
+    const goodW = Math.min(60, 34 + dexBonus);
+    const perfW = Math.min(24, 12 + Math.floor(dexBonus / 2));
+    const center = ri(20, 80);
+    const goodStart = clampNum(center - goodW / 2, 2, 98 - goodW);
+    const perfStart = clampNum(center - perfW / 2, goodStart + 2, goodStart + goodW - perfW - 2);
+
+    const wrap = document.createElement('div');
+    const trackWrap = elFromHtml(`<div class="mg-track">
+      <div class="mg-zone-good" style="left:${goodStart}%;width:${goodW}%;"></div>
+      <div class="mg-zone-perfect" style="left:${perfStart}%;width:${perfW}%;"></div>
+      <div class="mg-needle"></div>
+    </div>`);
+    const statusEl = elFromHtml(`<p class="mg-hint">Tekan tombol saat penanda berada di zona emas!</p>`);
+    const btnWrap = elFromHtml(`<div class="mg-act-btn-wrap"><button class="btn primary">⚔️ SERANG!</button></div>`);
+    wrap.appendChild(trackWrap); wrap.appendChild(statusEl); wrap.appendChild(btnWrap);
+    appendEl(wrap);
+    const needleEl = trackWrap.querySelector('.mg-needle');
+    const btn = btnWrap.querySelector('button');
+    const t0 = performance.now();
+    let raf = null;
+    const speed = enemy && enemy.is_boss ? 0.0021 : 0.0016;
+    function tick(t) {
+      const phase = (Math.sin((t - t0) * speed) + 1) / 2;
+      needleEl.style.left = (phase * 97) + '%';
+      needleEl._pos = phase * 100;
+      raf = requestAnimationFrame(tick);
+    }
+    raf = requestAnimationFrame(tick);
+    btn.addEventListener('click', () => {
+      cancelAnimationFrame(raf);
+      btn.disabled = true;
+      const pos = needleEl._pos || 0;
+      let tier, mult, label;
+      if (pos >= perfStart && pos <= perfStart + perfW) { tier = 'perfect'; mult = 1.6; label = '🌟 WAKTU SEMPURNA!'; }
+      else if (pos >= goodStart && pos <= goodStart + goodW) { tier = 'good'; mult = 1.15; label = '✅ Pukulan Bagus!'; }
+      else { tier = 'miss'; mult = 0.6; label = '💢 Ayunanmu meleset!'; }
+      mgFinish(wrap, statusEl, label, { tier, mult, label }, resolve);
+    });
+  });
+}
+
+/* --- 2) Tahan & Lepas --- */
+function mgHoldCharge(player, enemy) {
+  return new Promise(resolve => {
+    render(box('💪 Tahan & Lepas', `<p class="storytext">Tahan tombol untuk mengisi tenaga, lalu lepaskan tepat saat pengisi berada di zona putih untuk hantaman penuh!</p>`));
+    const dexBonus = Math.min(10, Math.floor((player.DEX || 0) / 8));
+    const zoneW = Math.min(38, 22 + dexBonus);
+    const zoneStart = ri(50, 90 - zoneW);
+    const wrap = document.createElement('div');
+    const trackWrap = elFromHtml(`<div class="mg-charge-track">
+      <div class="mg-charge-zone" style="left:${zoneStart}%;width:${zoneW}%;"></div>
+      <div class="mg-charge-fill"></div>
+    </div>`);
+    const statusEl = elFromHtml(`<p class="mg-hint">Tahan tombol untuk mengisi tenaga...</p>`);
+    const btnWrap = elFromHtml(`<div class="mg-act-btn-wrap"><button class="btn primary">🔥 TAHAN (lalu lepas)</button></div>`);
+    wrap.appendChild(trackWrap); wrap.appendChild(statusEl); wrap.appendChild(btnWrap);
+    appendEl(wrap);
+    const fillEl = trackWrap.querySelector('.mg-charge-fill');
+    const btn = btnWrap.querySelector('button');
+    let raf = null, holding = false, startT = 0, fill = 0, resolved = false;
+    const speed = enemy && enemy.is_boss ? 0.075 : 0.06;
+    function tick(t) {
+      if (!holding) return;
+      fill = Math.min(100, (t - startT) * speed);
+      fillEl.style.width = fill + '%';
+      if (fill >= 100) { finish(); return; }
+      raf = requestAnimationFrame(tick);
+    }
+    function finish() {
+      if (resolved) return;
+      resolved = true;
+      cancelAnimationFrame(raf); btn.disabled = true;
+      let tier, mult, label;
+      const dist = Math.abs(fill - (zoneStart + zoneW / 2));
+      if (fill >= zoneStart && fill <= zoneStart + zoneW && dist <= zoneW * 0.28) { tier = 'perfect'; mult = 1.6; label = '🌟 TENAGA PENUH SEMPURNA!'; }
+      else if (fill >= zoneStart && fill <= zoneStart + zoneW) { tier = 'good'; mult = 1.15; label = '✅ Tenaga cukup kuat!'; }
+      else { tier = 'miss'; mult = 0.6; label = '💢 Waktu lepasmu meleset!'; }
+      mgFinish(wrap, statusEl, label, { tier, mult, label }, resolve);
+    }
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      holding = true; startT = performance.now();
+      statusEl.textContent = 'Isi terus... lepaskan di zona putih!';
+      raf = requestAnimationFrame(tick);
+    });
+    btn.addEventListener('pointerup', () => { if (holding) { holding = false; finish(); } });
+    btn.addEventListener('pointerleave', () => { if (holding) { holding = false; finish(); } });
+  });
+}
+
+/* --- 3) Serangan Bertubi (mash) --- */
+function mgMashButton(player, enemy) {
+  return new Promise(resolve => {
+    render(box('👊 Serangan Bertubi', `<p class="storytext">Klik tombol secepat mungkin sebelum waktu habis untuk menghantam musuh berkali-kali!</p>`));
+    const dexBonus = Math.min(6, Math.floor((player.DEX || 0) / 10));
+    const duration = 2200;
+    const targetPerfect = Math.max(12, 20 - dexBonus);
+    const targetGood = Math.max(7, 12 - dexBonus);
+    const wrap = document.createElement('div');
+    const trackWrap = elFromHtml(`<div class="mg-mash-track"><div class="mg-mash-fill"></div></div>`);
+    const statusEl = elFromHtml(`<p class="mg-hint">Sisa waktu: ${(duration / 1000).toFixed(1)}s | Klik: 0</p>`);
+    const btnWrap = elFromHtml(`<div class="mg-mash-btn-wrap"><button class="btn primary">👊 PUKUL!</button></div>`);
+    wrap.appendChild(trackWrap); wrap.appendChild(statusEl); wrap.appendChild(btnWrap);
+    appendEl(wrap);
+    const fillEl = trackWrap.querySelector('.mg-mash-fill');
+    const btn = btnWrap.querySelector('button');
+    let clicks = 0;
+    const t0 = performance.now();
+    btn.addEventListener('click', () => {
+      clicks++;
+      fillEl.style.width = Math.min(100, clicks / targetPerfect * 100) + '%';
+      const remain = Math.max(0, (duration - (performance.now() - t0)) / 1000);
+      statusEl.textContent = `Sisa waktu: ${remain.toFixed(1)}s | Klik: ${clicks}`;
+    });
+    setTimeout(() => {
+      btn.disabled = true;
+      let tier, mult, label;
+      if (clicks >= targetPerfect) { tier = 'perfect'; mult = 1.6; label = '🌟 RENTETAN PUKULAN SEMPURNA!'; }
+      else if (clicks >= targetGood) { tier = 'good'; mult = 1.15; label = '✅ Rentetan cukup deras!'; }
+      else { tier = 'miss'; mult = 0.6; label = '💢 Terlalu lambat memukul!'; }
+      mgFinish(wrap, statusEl, label, { tier, mult, label }, resolve);
+    }, duration);
+  });
+}
+
+/* --- 4) Kombo Berirama (multi-hit) --- */
+function mgRhythmCombo(player, enemy) {
+  return new Promise(resolve => {
+    render(box('🎵 Kombo Berirama', `<p class="storytext">Tekan TAP setiap kali penanda memasuki zona emas. Ada 3 ketukan berturut-turut!</p>`));
+    const dexBonus = Math.min(10, Math.floor((player.DEX || 0) / 8));
+    const zoneW = Math.min(48, 30 + dexBonus);
+    const totalBeats = 3;
+    let beat = 0, hits = 0;
+    const wrap = document.createElement('div');
+    const trackWrap = elFromHtml(`<div class="mg-rhythm-track"><div class="mg-zone-good"></div><div class="mg-needle"></div></div>`);
+    const statusEl = elFromHtml(`<p class="mg-hint">Ketukan 1/${totalBeats}</p>`);
+    const btnWrap = elFromHtml(`<div class="mg-act-btn-wrap"><button class="btn primary">🥁 TAP!</button></div>`);
+    wrap.appendChild(trackWrap); wrap.appendChild(statusEl); wrap.appendChild(btnWrap);
+    appendEl(wrap);
+    const zoneEl = trackWrap.querySelector('.mg-zone-good');
+    const needleEl = trackWrap.querySelector('.mg-needle');
+    const btn = btnWrap.querySelector('button');
+    let raf = null, pos = 0, dir = 1, zoneStart = 0;
+    const speed = enemy && enemy.is_boss ? 2.2 : 1.7;
+    function newBeat() {
+      zoneStart = ri(5, 95 - zoneW);
+      zoneEl.style.left = zoneStart + '%'; zoneEl.style.width = zoneW + '%';
+      pos = 0; dir = 1;
+      statusEl.textContent = `Ketukan ${beat + 1}/${totalBeats}`;
+    }
+    function tick() {
+      pos += dir * speed;
+      if (pos >= 100) { pos = 100; dir = -1; }
+      if (pos <= 0) { pos = 0; dir = 1; }
+      needleEl.style.left = pos + '%';
+      raf = requestAnimationFrame(tick);
+    }
+    newBeat();
+    raf = requestAnimationFrame(tick);
+    btn.addEventListener('click', () => {
+      const hit = pos >= zoneStart && pos <= zoneStart + zoneW;
+      if (hit) hits++;
+      beat++;
+      if (beat >= totalBeats) {
+        cancelAnimationFrame(raf); btn.disabled = true;
+        let tier, mult, label;
+        if (hits >= totalBeats) { tier = 'perfect'; mult = 1.6; label = '🌟 KOMBO SEMPURNA 3/3!'; }
+        else if (hits >= 1) { tier = 'good'; mult = 1.15; label = `✅ Kombo lumayan (${hits}/${totalBeats})!`; }
+        else { tier = 'miss'; mult = 0.6; label = '💢 Seluruh ketukan meleset!'; }
+        mgFinish(wrap, statusEl, label, { tier, mult, label }, resolve);
+      } else {
+        newBeat();
+      }
+    });
+  });
+}
+
+/* --- 5) Target Reflex --- */
+function mgReflexTargets(player, enemy) {
+  return new Promise(resolve => {
+    render(box('🎯 Target Reflex', `<p class="storytext">Ketuk titik cahaya secepat mungkin sebelum menghilang!</p>`));
+    const total = 5;
+    const dexBonus = Math.min(300, Math.floor((player.DEX || 0) * 12));
+    const visibleMs = Math.max(420, (enemy && enemy.is_boss ? 620 : 750) - Math.floor(dexBonus / 10));
+    let hits = 0, idx = 0;
+    const wrap = document.createElement('div');
+    const fieldEl = elFromHtml(`<div class="mg-reflex-field"></div>`);
+    const statusEl = elFromHtml(`<p class="mg-hint">Target 1/${total}</p>`);
+    wrap.appendChild(fieldEl); wrap.appendChild(statusEl);
+    appendEl(wrap);
+    function spawn() {
+      statusEl.textContent = `Target ${idx + 1}/${total} | Kena: ${hits}`;
+      const t = elFromHtml(`<div class="mg-reflex-target">✨</div>`);
+      t.style.left = ri(5, 78) + '%'; t.style.top = ri(5, 70) + '%';
+      fieldEl.appendChild(t);
+      let done = false;
+      const timer = setTimeout(() => { if (!done) { done = true; t.remove(); next(); } }, visibleMs);
+      t.addEventListener('click', () => {
+        if (done) return;
+        done = true; clearTimeout(timer); hits++; t.remove(); next();
+      });
+    }
+    function next() {
+      idx++;
+      if (idx >= total) {
+        let tier, mult, label;
+        if (hits >= total) { tier = 'perfect'; mult = 1.6; label = '🌟 SEMUA TARGET KENA!'; }
+        else if (hits >= Math.ceil(total / 2)) { tier = 'good'; mult = 1.15; label = `✅ Refleks lumayan (${hits}/${total})!`; }
+        else { tier = 'miss'; mult = 0.6; label = `💢 Banyak target lolos (${hits}/${total})!`; }
+        mgFinish(wrap, statusEl, label, { tier, mult, label }, resolve);
+        return;
+      }
+      spawn();
+    }
+    spawn();
+  });
+}
+
+/* --- 6) Bidik Titik Lemah --- */
+function mgAimReticle(player, enemy) {
+  return new Promise(resolve => {
+    render(box('🎯 Bidik Titik Lemah', `<p class="storytext">Titik bidik bergerak melingkar. Tekan BIDIK saat tepat berada di atas titik lemah merah!</p>`));
+    const wrap = document.createElement('div');
+    const fieldEl = elFromHtml(`<div class="mg-aim-field"></div>`);
+    const wx = ri(25, 75), wy = ri(25, 75);
+    const wp = elFromHtml(`<div class="mg-aim-weakpoint">💢</div>`);
+    wp.style.left = `calc(${wx}% - 29px)`; wp.style.top = `calc(${wy}% - 29px)`;
+    const reticle = elFromHtml(`<div class="mg-aim-reticle"></div>`);
+    fieldEl.appendChild(wp); fieldEl.appendChild(reticle);
+    const statusEl = elFromHtml(`<p class="mg-hint">Tekan BIDIK saat reticle tepat di titik lemah!</p>`);
+    const btnWrap = elFromHtml(`<div class="mg-aim-btn-wrap"><button class="btn primary">🏹 BIDIK!</button></div>`);
+    wrap.appendChild(fieldEl); wrap.appendChild(statusEl); wrap.appendChild(btnWrap);
+    appendEl(wrap);
+    const btn = btnWrap.querySelector('button');
+    let raf = null;
+    const t0 = performance.now();
+    const speed = enemy && enemy.is_boss ? 0.0026 : 0.002;
+    const radiusX = 34, radiusY = 30, cx = 50, cy = 50;
+    function tick(t) {
+      const a = (t - t0) * speed;
+      const rx = cx + Math.cos(a) * radiusX;
+      const ry = cy + Math.sin(a * 1.3) * radiusY;
+      reticle.style.left = rx + '%'; reticle.style.top = ry + '%';
+      reticle._x = rx; reticle._y = ry;
+      raf = requestAnimationFrame(tick);
+    }
+    raf = requestAnimationFrame(tick);
+    btn.addEventListener('click', () => {
+      cancelAnimationFrame(raf); btn.disabled = true;
+      const dx = (reticle._x || 0) - wx, dy = (reticle._y || 0) - wy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      let tier, mult, label;
+      if (dist <= 7) { tier = 'perfect'; mult = 1.6; label = '🌟 TEMBAKAN TEPAT SASARAN!'; }
+      else if (dist <= 15) { tier = 'good'; mult = 1.15; label = '✅ Nyaris kena titik lemah!'; }
+      else { tier = 'miss'; mult = 0.6; label = '💢 Bidikan meleset jauh!'; }
+      mgFinish(wrap, statusEl, label, { tier, mult, label }, resolve);
+    });
+  });
+}
+
+/* --- 7) Kombo Rune Cepat (dipakai saat memakai Skill) --- */
+function mgRuneCombo(player, enemy) {
+  return new Promise(resolve => {
+    render(box('🪄 Kombo Rune Cepat', `<p class="storytext">Rune akan menyala satu per satu secara acak — ketuk secepat mungkin sebelum cahayanya padam untuk memperkuat mantramu!</p>`));
+    const syms = ['🔥', '💧', '🌪️', '⚡'];
+    const total = 4;
+    const dexBonus = Math.min(300, Math.floor((player.DEX || 0) * 10));
+    const visibleMs = Math.max(480, (enemy && enemy.is_boss ? 680 : 800) - Math.floor(dexBonus / 10));
+    let hits = 0, idx = 0;
+    const wrap = document.createElement('div');
+    const gridEl = elFromHtml(`<div class="mg-rune-grid"></div>`);
+    const pads = syms.map((s, i) => { const p = elFromHtml(`<div class="mg-rune-pad" data-i="${i}">${s}</div>`); gridEl.appendChild(p); return p; });
+    const statusEl = elFromHtml(`<p class="mg-hint">Bersiap...</p>`);
+    wrap.appendChild(gridEl); wrap.appendChild(statusEl);
+    appendEl(wrap);
+    function round() {
+      statusEl.textContent = `Rune ${idx + 1}/${total} | Kena: ${hits}`;
+      const i = ri(0, 3);
+      pads[i].classList.add('lit');
+      let done = false;
+      const timer = setTimeout(() => { if (!done) { done = true; pads[i].classList.remove('lit'); nextRound(); } }, visibleMs);
+      function handler() {
+        if (done) return;
+        done = true; clearTimeout(timer); hits++; pads[i].classList.remove('lit'); pads[i].removeEventListener('click', handler); nextRound();
+      }
+      pads[i].addEventListener('click', handler);
+    }
+    function nextRound() {
+      idx++;
+      if (idx >= total) {
+        pads.forEach(p => p.classList.add('disabled'));
+        let tier, mult, label;
+        if (hits >= total) { tier = 'perfect'; mult = 1.6; label = '🌟 MANTRA SEMPURNA TERUCAP!'; }
+        else if (hits >= Math.ceil(total / 2)) { tier = 'good'; mult = 1.15; label = `✅ Mantra cukup stabil (${hits}/${total})!`; }
+        else { tier = 'miss'; mult = 0.6; label = `💢 Mantra kacau (${hits}/${total})!`; }
+        mgFinish(wrap, statusEl, label, { tier, mult, label }, resolve);
+        return;
+      }
+      round();
+    }
+    round();
+  });
+}
+
+/* --- 8) Hindari Proyektil (bullet-dodge ala Undertale) --- */
+function mgBulletDodge(player, enemy) {
+  return new Promise(resolve => {
+    render(box('💨 Hindari Proyektil', `<p class="storytext">Geser jarimu / mouse di dalam kotak untuk menggerakkan sosok cahayamu dan menghindari proyektil musuh selama beberapa detik!</p>`));
+    const dexBonus = Math.min(3, Math.floor((player.DEX || 0) / 12));
+    let lives = 3 + dexBonus;
+    const maxLives = lives;
+    const duration = enemy && enemy.is_boss ? 4200 : 3400;
+    const wrap = document.createElement('div');
+    const fieldEl = elFromHtml(`<div class="mg-dodge-field"></div>`);
+    const soul = elFromHtml(`<div class="mg-dodge-soul"></div>`);
+    fieldEl.appendChild(soul);
+    const heartsEl = elFromHtml(`<p class="mg-dodge-hearts"></p>`);
+    const statusEl = elFromHtml(`<p class="mg-hint">Geser jarimu / mouse di dalam kotak untuk bergerak!</p>`);
+    wrap.appendChild(fieldEl); wrap.appendChild(heartsEl); wrap.appendChild(statusEl);
+    appendEl(wrap);
+    let soulX = 50; soul.style.left = soulX + '%';
+    function renderHearts() { heartsEl.textContent = '💛'.repeat(Math.max(0, lives)) + '🖤'.repeat(Math.max(0, maxLives - lives)); }
+    renderHearts();
+    function moveTo(clientX) {
+      const rect = fieldEl.getBoundingClientRect();
+      soulX = clampNum(((clientX - rect.left) / rect.width) * 100, 3, 97);
+      soul.style.left = soulX + '%';
+    }
+    function onMove(e) { moveTo(e.touches ? e.touches[0].clientX : e.clientX); }
+    fieldEl.addEventListener('pointermove', onMove);
+    fieldEl.addEventListener('pointerdown', onMove);
+
+    const bullets = [];
+    let ended = false;
+    const spawnRate = enemy && enemy.is_boss ? 340 : 460;
+    const spawnTimer = setInterval(() => {
+      if (ended) return;
+      const b = elFromHtml(`<div class="mg-dodge-bullet"></div>`);
+      const x = ri(4, 96);
+      b.style.left = x + '%';
+      fieldEl.appendChild(b);
+      bullets.push({ el: b, x, startTime: performance.now(), fallMs: ri(1400, 2000), hit: false, done: false });
+    }, spawnRate);
+
+    let raf = null;
+    function tick(t) {
+      bullets.forEach(bl => {
+        if (bl.hit || bl.done) return;
+        const prog = (t - bl.startTime) / bl.fallMs;
+        if (prog >= 1) { bl.done = true; bl.el.remove(); return; }
+        bl.el.style.top = (prog * 100) + '%';
+        if (prog > 0.78) {
+          if (Math.abs(bl.x - soulX) < 7) {
+            bl.hit = true; bl.done = true; bl.el.remove();
+            lives = Math.max(0, lives - 1);
+            renderHearts();
+            soul.classList.add('hit'); setTimeout(() => soul.classList.remove('hit'), 200);
+          }
+        }
+      });
+      if (!ended) raf = requestAnimationFrame(tick);
+    }
+    raf = requestAnimationFrame(tick);
+
+    setTimeout(() => {
+      ended = true;
+      clearInterval(spawnTimer);
+      cancelAnimationFrame(raf);
+      fieldEl.querySelectorAll('.mg-dodge-bullet').forEach(b => b.remove());
+      const hitsTaken = maxLives - lives;
+      let tier, mult, label;
+      if (hitsTaken <= 0) { tier = 'perfect'; mult = 0; label = '🛡️🌟 BERTAHAN SEMPURNA, TANPA TERGORES!'; }
+      else if (hitsTaken <= 1) { tier = 'good'; mult = 0.4; label = '🛡️ Bertahan cukup baik, sedikit tergores!'; }
+      else { tier = 'miss'; mult = 1.0; label = '💥 Pertahananmu jebol, banyak proyektil menembus!'; }
+      mgFinish(wrap, statusEl, label, { tier, mult, label }, resolve);
+    }, duration);
+  });
+}
+
+/* --- 9) Parry Sempurna --- */
+function mgParryQTE(player, enemy) {
+  return new Promise(resolve => {
+    render(box('🛡️ Parry Sempurna', `<p class="storytext">Lingkaran merah menyusut mendekati lingkaran target emas. Tekan PARRY tepat saat keduanya berhimpit untuk membalikkan serangan!</p>`));
+    const targetSize = 74;
+    const wrap = document.createElement('div');
+    const parryWrap = elFromHtml(`<div class="mg-parry-wrap"><div class="mg-parry-field">
+      <div class="mg-parry-outer"></div>
+      <div class="mg-parry-target" style="width:${targetSize}px;height:${targetSize}px;margin:${-targetSize / 2}px 0 0 ${-targetSize / 2}px;"></div>
+      <div class="mg-parry-shrink" style="width:160px;height:160px;margin:-80px 0 0 -80px;"></div>
+    </div></div>`);
+    const statusEl = elFromHtml(`<p class="mg-hint">Tekan PARRY saat cincin merah pas menghimpit cincin emas!</p>`);
+    const btnWrap = elFromHtml(`<div class="mg-act-btn-wrap"><button class="btn primary">🛡️ PARRY!</button></div>`);
+    wrap.appendChild(parryWrap); wrap.appendChild(statusEl); wrap.appendChild(btnWrap);
+    appendEl(wrap);
+    const shrinkEl = parryWrap.querySelector('.mg-parry-shrink');
+    const btn = btnWrap.querySelector('button');
+    let raf = null;
+    const t0 = performance.now();
+    const totalMs = enemy && enemy.is_boss ? 1250 : 1550;
+    const startSize = 160, endSize = 20;
+    let curSize = startSize, resolved = false;
+    function tick(t) {
+      const prog = Math.min(1, (t - t0) / totalMs);
+      curSize = startSize + (endSize - startSize) * prog;
+      shrinkEl.style.width = curSize + 'px'; shrinkEl.style.height = curSize + 'px';
+      shrinkEl.style.margin = (-curSize / 2) + 'px 0 0 ' + (-curSize / 2) + 'px';
+      if (prog >= 1) { finish(); return; }
+      raf = requestAnimationFrame(tick);
+    }
+    function finish() {
+      if (resolved) return;
+      resolved = true;
+      cancelAnimationFrame(raf); btn.disabled = true;
+      const diff = Math.abs(curSize - targetSize);
+      let tier, mult, label;
+      if (diff <= 8) { tier = 'perfect'; mult = 0; label = '🛡️🌟 PARRY SEMPURNA! Serangan dibalikkan!'; }
+      else if (diff <= 22) { tier = 'good'; mult = 0.4; label = '🛡️ Parry cukup tepat!'; }
+      else { tier = 'miss'; mult = 1.0; label = '💥 Parry meleset total!'; }
+      mgFinish(wrap, statusEl, label, { tier, mult, label }, resolve);
+    }
+    raf = requestAnimationFrame(tick);
+    btn.addEventListener('click', finish);
+  });
+}
+
+/* --- 10) Baris Bertahan (memory guard 3 lajur) --- */
+function mgMemoryGuard(player, enemy) {
+  return new Promise(resolve => {
+    render(box('🧭 Baris Bertahan', `<p class="storytext">Perhatikan arah serangan musuh yang ditelegrafikan, lalu ketuk lajur yang sama secara berurutan untuk memblokirnya!</p>`));
+    const lanes = ['◀️ Kiri', '⏺️ Tengah', '▶️ Kanan'];
+    const len = enemy && enemy.is_boss ? 4 : 3;
+    const sequence = []; for (let i = 0; i < len; i++) sequence.push(ri(0, 2));
+    let hits = 0, playerIdx = 0, accepting = false;
+    const wrap = document.createElement('div');
+    const gridEl = elFromHtml(`<div class="mg-guard-lanes"></div>`);
+    const laneEls = lanes.map((l, i) => { const el = elFromHtml(`<div class="mg-guard-lane" data-i="${i}">${l}</div>`); gridEl.appendChild(el); return el; });
+    const statusEl = elFromHtml(`<p class="mg-hint">Perhatikan arah serangan...</p>`);
+    wrap.appendChild(gridEl); wrap.appendChild(statusEl);
+    appendEl(wrap);
+    function flash(i, dur) {
+      return new Promise(res => {
+        laneEls[i].classList.add('telegraph');
+        setTimeout(() => { laneEls[i].classList.remove('telegraph'); setTimeout(res, 160); }, dur);
+      });
+    }
+    async function telegraphAll() {
+      accepting = false;
+      laneEls.forEach(l => l.classList.add('disabled'));
+      statusEl.textContent = 'Perhatikan arah serangan musuh...';
+      await new Promise(r => setTimeout(r, 400));
+      for (const i of sequence) await flash(i, enemy && enemy.is_boss ? 430 : 520);
+      statusEl.textContent = `Giliranmu! Blokir ${sequence.length} arah sesuai urutan.`;
+      laneEls.forEach(l => l.classList.remove('disabled'));
+      accepting = true; playerIdx = 0;
+    }
+    laneEls.forEach((el, i) => {
+      el.addEventListener('click', () => {
+        if (!accepting) return;
+        const correct = i === sequence[playerIdx];
+        el.classList.add(correct ? 'correct' : 'wrong');
+        setTimeout(() => el.classList.remove('correct', 'wrong'), 220);
+        if (correct) hits++;
+        playerIdx++;
+        if (playerIdx >= sequence.length) {
+          accepting = false;
+          laneEls.forEach(l => l.classList.add('disabled'));
+          let tier, mult, label;
+          if (hits >= sequence.length) { tier = 'perfect'; mult = 0; label = '🛡️🌟 SEMUA ARAH TERBLOKIR SEMPURNA!'; }
+          else if (hits >= Math.ceil(sequence.length / 2)) { tier = 'good'; mult = 0.4; label = `🛡️ Sebagian besar terblokir (${hits}/${sequence.length})!`; }
+          else { tier = 'miss'; mult = 1.0; label = `💥 Pertahanan gagal (${hits}/${sequence.length})!`; }
+          mgFinish(wrap, statusEl, label, { tier, mult, label }, resolve);
+        }
+      });
+    });
+    telegraphAll();
+  });
+}
+
+/* --- Dispatcher: pilih satu mekanik secara acak setiap giliran --- */
+async function runOffenseMinigame(player, enemy) {
+  const pool = [mgTimingStrike, mgHoldCharge, mgMashButton, mgRhythmCombo, mgReflexTargets, mgAimReticle];
+  const fn = choiceArr(pool);
+  return await fn(player, enemy);
+}
+async function runDefenseMinigame(player, enemy) {
+  const pool = [mgBulletDodge, mgParryQTE, mgMemoryGuard];
+  const fn = choiceArr(pool);
+  return await fn(player, enemy);
+}
+
 async function battle(player, enemy, floor) {
   let msg = `⚠️ Musuh muncul: ${enemy.name}!`;
   if (enemy.is_boss) {
@@ -2006,19 +2606,22 @@ async function battle(player, enemy, floor) {
       { label: `🔷 Potion MP (${player.mana_potions})`, value: '4' },
       { label: `🌟 Elixir (${player.elixirs})`, value: '5' },
       { label: '🏃 Coba Kabur', value: '6', cls: 'danger' },
+      { label: '🛡️ Fokus Bertahan', value: '7' },
     ];
     const action = await choose(actions);
     let skipPost = false;
+    let guardMult = 1;
 
     if (action === '1') {
+      const mg = await runOffenseMinigame(player, enemy);
       const isCrit = ri(1, 100) <= player.crit_rate;
-      const mult = isCrit ? 1.75 : 1.0;
+      const mult = (isCrit ? 1.75 : 1.0) * mg.mult;
       const curseBonus = Math.floor(player.CRS / 3);
       const baseDmg = Math.max(1, player.atk + curseBonus - Math.floor(enemy.defense / 2));
       const dmg = Math.floor((baseDmg + ri(-3, 6)) * mult);
       enemy.hp -= dmg;
       const critText = isCrit ? '💥 KRITIKAL! ' : '';
-      msg = `${critText}Kamu menyerang ${enemy.name} menghasilkan ${dmg} DMG!`;
+      msg = `${mg.label} ${critText}Kamu menyerang ${enemy.name} menghasilkan ${dmg} DMG!`;
 
       if (ri(1, 100) <= Math.floor(player.SPD / 6)) {
         const extraDmg = Math.max(1, Math.floor(player.atk / 2) + ri(-2, 4));
@@ -2045,11 +2648,12 @@ async function battle(player, enemy, floor) {
         if (player.mp < mpCost) { msg = `⚠️ MP tidak mencukupi! Butuh ${mpCost} MP.`; skipPost = true; }
         else {
           player.mp -= mpCost;
+          const mg = await mgRuneCombo(player, enemy);
           const intBonus = Math.floor(player.INT / 2);
-          let skillDmg = player.atk + (chosenSkill.dmg || 0) + intBonus + ri(8, 20);
+          let skillDmg = Math.floor((player.atk + (chosenSkill.dmg || 0) + intBonus + ri(8, 20)) * mg.mult);
           skillDmg = Math.max(1, skillDmg - Math.floor(enemy.defense / 3));
           enemy.hp -= skillDmg;
-          msg = `✨ [${chosenSkill.name}] meledak! ${skillDmg} DMG pada ${enemy.name}! (INT +${intBonus} DMG)`;
+          msg = `${mg.label} ✨ [${chosenSkill.name}] meledak! ${skillDmg} DMG pada ${enemy.name}! (INT +${intBonus} DMG)`;
           if ((chosenSkill.heal || 0) > 0) {
             player.hp = Math.min(player.max_hp, player.hp + chosenSkill.heal);
             msg += ` (+${chosenSkill.heal} HP Pulih)`;
@@ -2096,6 +2700,10 @@ async function battle(player, enemy, floor) {
           return false;
         } else { msg = '❌ Gagal kabur! Musuh menghalangi jalanmu!'; }
       }
+    } else if (action === '7') {
+      const mg = await runDefenseMinigame(player, enemy);
+      guardMult = mg.mult;
+      msg = `${mg.label} Kamu memusatkan fokus pertahanan menghadapi ${enemy.name}!`;
     }
 
     if (skipPost) continue;
@@ -2234,13 +2842,15 @@ async function battle(player, enemy, floor) {
     }
 
     const evasionChance = player.evasion_rate;
-    if (ri(1, 100) <= evasionChance) {
+    if (guardMult <= 0) {
+      msg += ` | 🛡️✨ Bertahan sempurna! Serangan ${enemy.name} sama sekali tidak berpengaruh!`;
+    } else if (ri(1, 100) <= evasionChance) {
       msg += ` | 🌀 Kamu berhasil MENGHINDARI serangan ${enemy.name}!`;
     } else {
-      const dmgTaken = Math.max(2, enemy.atk + ri(-4, 5) - player.defense);
+      const dmgTaken = Math.max(guardMult < 1 ? 1 : 2, Math.floor((enemy.atk + ri(-4, 5) - player.defense) * guardMult));
       player.hp -= dmgTaken;
       msg += ` | 👹 ${enemy.name} membalas dengan ${dmgTaken} DMG!`;
-      if (enemy.name.includes('Beracun') || enemy.name.includes('Bisa') || enemy.is_boss) {
+      if (guardMult >= 1 && (enemy.name.includes('Beracun') || enemy.name.includes('Bisa') || enemy.is_boss)) {
         if (player.poison_turns === 0 && rf() < 0.25) {
           player.poison_turns = 3;
           player.poison_dmg = Math.max(5, Math.floor(enemy.atk / 6));
@@ -2669,9 +3279,11 @@ async function denMenu(player) {
    SAVE & LOAD GAME (Local Storage utama, file JSON sebagai cadangan)
    ============================================================ */
 const SAVE_KEY = 'eldoria_save_v1';
+const SAVE_VERSION = 2;
 
 function playerToSaveData(player) {
   return {
+    save_version: SAVE_VERSION,
     name: player.name, race_key: player.race_key, race_name: player.race_name, race_info: player.race_info,
     class_name: player.class_name, base_class_info: player.base_class_info, tier: player.tier,
     level: player.level, exp: player.exp, exp_needed: player.exp_needed, gold: player.gold,
@@ -2686,7 +3298,7 @@ function playerToSaveData(player) {
     reputation: player.reputation, story_flags: player.story_flags, quest_flags: player.quest_flags,
     bosses_defeated: player.bosses_defeated, current_floor: player.current_floor,
     explore_count: player.explore_count, difficulty: player.difficulty,
-    hell_grind: player.hell_grind, hell_prepared_floor: player.hell_prepared_floor,
+    hell_grind: player.hell_grind,
     saved_at: Date.now(),
   };
 }
@@ -2880,9 +3492,12 @@ function loadGameFromData(d) {
     p.base_max_hp = d.base_max_hp; p.base_max_mp = d.base_max_mp; p.hp = d.hp; p.mp = d.mp;
     p.base_atk = d.base_atk; p.base_def = d.base_def;
     p.STR = d.STR; p.INT = d.INT; p.CHA = d.CHA; p.SPD = d.SPD; p.DEX = d.DEX; p.CRS = d.CRS;
-    p.equipped_weapon = d.equipped_weapon; p.weapon_upgrade = d.weapon_upgrade || 0;
-    p.equipped_armor = d.equipped_armor; p.armor_upgrade = d.armor_upgrade || 0;
-    p.learned_skills = d.learned_skills; p.active_skills = d.active_skills;
+    if (d.equipped_weapon && typeof d.equipped_weapon === 'object') p.equipped_weapon = d.equipped_weapon;
+    p.weapon_upgrade = Number.isFinite(Number(d.weapon_upgrade)) ? Math.max(0, Number(d.weapon_upgrade)) : 0;
+    if (d.equipped_armor && typeof d.equipped_armor === 'object') p.equipped_armor = d.equipped_armor;
+    p.armor_upgrade = Number.isFinite(Number(d.armor_upgrade)) ? Math.max(0, Number(d.armor_upgrade)) : 0;
+    p.learned_skills = Array.isArray(d.learned_skills) && d.learned_skills.length ? d.learned_skills : p.learned_skills;
+    p.active_skills = Array.isArray(d.active_skills) && d.active_skills.length ? d.active_skills : p.active_skills;
     p.potions = d.potions; p.mana_potions = d.mana_potions; p.elixirs = d.elixirs != null ? d.elixirs : 1;
     p.inventory = d.inventory || []; p.weapon_loot = d.weapon_loot || []; p.armor_loot = d.armor_loot || []; p.skill_loot = d.skill_loot || [];
     p.reputation = d.reputation || 0; p.story_flags = d.story_flags || []; p.quest_flags = d.quest_flags || [];
@@ -2890,7 +3505,6 @@ function loadGameFromData(d) {
     p.explore_count = d.explore_count || 0;
     p.difficulty = d.difficulty || 'normal';
     p.hell_grind = d.hell_grind || 0;
-    p.hell_prepared_floor = d.hell_prepared_floor || 0;
     p.recalcHpMp();
     return p;
   } catch (e) {
@@ -3015,8 +3629,19 @@ function classThemeKey(className) {
 function applyClassTheme(className) {
   const body = document.body;
   [...body.classList].filter(c => c.startsWith('class-theme-')).forEach(c => body.classList.remove(c));
-  if (className) body.classList.add('class-theme-' + classThemeKey(className));
-  body.dataset.classTheme = className || '';
+  if (!className) {
+    delete body.dataset.classTheme;
+    return;
+  }
+
+  // Gunakan engine tema utama jika sudah tersedia; fallback ke pemetaan lokal
+  // supaya save lama/promosi tetap aman meskipun engine eksternal belum siap.
+  if (typeof window.setEldoriaClassTheme === 'function') {
+    window.setEldoriaClassTheme(className);
+  } else {
+    body.classList.add('class-theme-' + classThemeKey(className));
+  }
+  body.dataset.classTheme = className;
 }
 
 function selectCardGrid(items, kind) {
@@ -3354,7 +3979,6 @@ async function mainGame() {
           if (player.current_floor === MAX_FLOORS) break;
           player.current_floor += 1;
           player.explore_count = 0;
-          if (player.isHell) player.hell_prepared_floor = 0;
           if (STORY_DATA[player.current_floor]) {
             render(box(null, `<p class="storytext">${nl2br(STORY_DATA[player.current_floor])}</p>`));
             await continueBtn('Melangkah Maju ➜');
@@ -3375,7 +3999,6 @@ async function mainGame() {
           if (player.current_floor === MAX_FLOORS) break;
           player.current_floor += 1;
           player.explore_count = 0;
-          if (player.isHell) player.hell_prepared_floor = 0;
           if (STORY_DATA[player.current_floor]) {
             render(box(null, `<p class="storytext">${nl2br(STORY_DATA[player.current_floor])}</p>`));
             await continueBtn('Melangkah Maju ➜');
@@ -3410,57 +4033,26 @@ async function mainGame() {
            konsekuensinya ditentukan oleh pertarungan: player bisa
            kehilangan banyak HP atau mati.
            ======================================================== */
-        if (player.isHell) {
-          const req = getHellGrindRequirement(player.current_floor);
-          const grind = player.hell_grind || 0;
-          let dangerText = '';
+        const triggered = await triggerStoryOrEvent(player, player.current_floor);
+        let exploredSuccessfully = false;
+        if (!triggered) {
+          const enemy = getEnemyForFloor(player.current_floor, player);
+          const won = await battle(player, enemy, player.current_floor);
+          exploredSuccessfully = won;
+          logMsg = player.isHell
+            ? (won ? 'Selesai menjelajahi Dungeon Neraka.' : 'Kamu mundur dari pertarungan Dungeon Neraka.')
+            : (won ? 'Selesai menjelajahi koridor dungeon.' : 'Kamu mundur dari pertarungan.');
+        } else {
+          exploredSuccessfully = true;
+          logMsg = player.isHell ? 'Menemukan peristiwa khusus di Dungeon Neraka.' : 'Menemukan peristiwa khusus di dungeon.';
+        }
 
-          if (grind === 0) {
-            dangerText = `
-              
-              <p class="storytext">Tidak ada yang menghalangimu masuk. Tetapi tekanan Abyss dan monster di koridor ini jauh lebih brutal daripada Sarang Monster. Masuk sekarang berarti mempertaruhkan nyawamu.</p>
-            `;
-          } else if (grind < req) {
-            dangerText = `
-              <p class="boss-warn">⚠️ Persiapanmu masih di bawah rekomendasi lantai ini.</p>
-              <p class="statline">🔥 Persiapan Abyss: <b>${grind}</b> | Rekomendasi: <b>${req}</b></p>
-              <p class="storytext">Kamu tetap bisa masuk. Tidak ada larangan. Namun kekuatanmu belum ideal untuk menghadapi tekanan Abyss lantai ini.</p>
-            `;
-          } else {
-            dangerText = `
-              <p class="statline">🛡️ Persiapan Abyss: <b>${grind}</b> | Rekomendasi: <b>${req}</b></p>
-              <p class="storytext">Kamu memiliki bekal grinding yang cukup untuk menghadapi lantai ini. Tetap waspada — Dungeon Neraka tidak pernah menjadi aman.</p>
-            `;
-          }
-
-          
-          const triggered = await triggerStoryOrEvent(player, player.current_floor);
-          if (!triggered) {
-            const enemy = getEnemyForFloor(player.current_floor, player);
-            await battle(player, enemy, player.current_floor);
-            logMsg = 'Selesai menjelajahi koridor Dungeon Neraka.';
-          } else {
-            logMsg = 'Menemukan peristiwa khusus di Dungeon Neraka.';
-          }
-
-          if (player.hp > 0) {
-            player.explore_count += 1;
-            if (player.explore_count >= EXPLORES_PER_FLOOR) {
-              logMsg += ' Kabut tebal mendadak menyelimuti koridor... sesuatu yang besar sedang mendekat!';
-            }
-          }
-                } else {
-          const triggered = await triggerStoryOrEvent(player, player.current_floor);
-          if (!triggered) {
-            const enemy = getEnemyForFloor(player.current_floor, player);
-            await battle(player, enemy, player.current_floor);
-            logMsg = player.isHell ? 'Selesai menjelajahi koridor Dungeon Neraka.' : 'Selesai menjelajahi koridor dungeon.';
-          } else logMsg = player.isHell ? 'Menemukan peristiwa khusus di Dungeon Neraka.' : 'Menemukan peristiwa khusus di dungeon.';
-          if (player.hp > 0) {
-            player.explore_count += 1;
-            if (player.explore_count >= EXPLORES_PER_FLOOR) {
-              logMsg += ' Kabut tebal mendadak menyelimuti koridor... sesuatu yang besar sedang mendekat!';
-            }
+        // Kabur dari monster tidak dihitung sebagai satu kali jelajah.
+        // Event cerita dan kemenangan pertarungan baru memajukan progres lantai.
+        if (player.hp > 0 && exploredSuccessfully) {
+          player.explore_count += 1;
+          if (player.explore_count >= EXPLORES_PER_FLOOR) {
+            logMsg += ' Kabut tebal mendadak menyelimuti koridor... sesuatu yang besar sedang mendekat!';
           }
         }
       } else if (act === '2') {
