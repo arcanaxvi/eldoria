@@ -1572,16 +1572,32 @@ function renderBattleScreen(player, enemy, floor, msg) {
 }
 
 /* ============================================================
-   PUZZLE PICKLOCK PETI HARTA
+   SISTEM TEKA-TEKI PETI HARTA — 5 VARIASI
    Dipakai setiap kali menemukan peti — entah di koridor biasa
-   maupun rampasan boss. Pemain harus menekan tiap pin gembok
-   dengan tekanan yang tepat. DEX memberi sedikit toleransi
-   kesalahan ekstra. Gagal total = gembok macet, hanya dapat
-   sebagian kecil hadiah "konsolasi".
+   maupun rampasan boss. Setiap kali peti ditemukan, satu dari
+   5 jenis teka-teki dipilih secara ACAK: Gembok Pin, Ingatan
+   Simbol, Ritme Ketukan, Teka-Teki XO, dan Cocok Pasangan Rune.
+   Semua versi dibuat cukup RINGAN & toleran (banyak percobaan
+   ulang, peluang tebakan lebih besar) supaya tetap seru tanpa
+   terlalu menyulitkan. DEX memberi sedikit toleransi kesalahan
+   ekstra. Gagal total = peti macet, hanya dapat sebagian kecil
+   hadiah "konsolasi" (ditangani di titik pemanggilan).
    ============================================================ */
-async function pickLockPuzzle(player, pinCount, chestLabel) {
+async function runChestPuzzle(player, difficulty, chestLabel) {
+  const types = ['lockpick', 'memory', 'rhythm', 'tictactoe', 'runematch'];
+  const type = choiceArr(types);
+  if (type === 'lockpick') return await puzzleLockpick(player, difficulty, chestLabel);
+  if (type === 'memory') return await puzzleMemorySequence(player, difficulty, chestLabel);
+  if (type === 'rhythm') return await puzzleRhythmSequence(player, difficulty, chestLabel);
+  if (type === 'tictactoe') return await puzzleTicTacToe(player, difficulty, chestLabel);
+  return await puzzleRuneMatch(player, difficulty, chestLabel);
+}
+
+/* --- Variasi 1: Gembok Pin (2 pilihan tekanan, lebih toleran) --- */
+async function puzzleLockpick(player, difficulty, chestLabel) {
   const dexBonus = Math.floor((player.DEX || 0) / 10);
-  const maxMistakes = 2 + dexBonus;
+  const pinCount = Math.max(2, Math.min(difficulty, 4));
+  const maxMistakes = 3 + dexBonus;
   let mistakes = 0;
 
   render(box(`🔐 ${chestLabel}`, `
@@ -1591,7 +1607,7 @@ async function pickLockPuzzle(player, pinCount, chestLabel) {
   await continueBtn('Mulai Membongkar Gembok ➜');
 
   for (let p = 1; p <= pinCount; p++) {
-    const optLabels = ['🔧 Tekanan Ringan', '🔧 Tekanan Sedang', '🔧 Tekanan Kuat'];
+    const optLabels = ['🔧 Tekanan Ringan', '🔧 Tekanan Kuat'];
     const correct = ri(0, optLabels.length - 1);
     let solved = false;
     while (!solved) {
@@ -1621,6 +1637,222 @@ async function pickLockPuzzle(player, pinCount, chestLabel) {
   return true;
 }
 
+/* --- Variasi 2: Ingatan Simbol (hafalkan urutan lalu kenali tiap simbol dari beberapa pilihan) --- */
+async function puzzleMemorySequence(player, difficulty, chestLabel) {
+  const symbolPool = ['🌟','🌙','🔥','💧','🍃','⚡','❄️','🌸','🗝️','💀'];
+  const dexBonus = Math.floor((player.DEX || 0) / 10);
+  const len = Math.max(3, Math.min(difficulty, 4));
+  const pool = [...symbolPool];
+  const sequence = [];
+  for (let i = 0; i < len; i++) {
+    const idx = ri(0, pool.length - 1);
+    sequence.push(pool[idx]);
+    pool.splice(idx, 1);
+  }
+
+  render(box(`🧿 ${chestLabel}`, `
+    <p class="storytext">Ukiran simbol kuno bercahaya sesaat di permukaan peti. Hafalkan urutannya sebelum cahayanya memudar!</p>
+    <p class="statline" style="font-size:1.3rem;text-align:center;letter-spacing:10px;">${sequence.join(' ')}</p>
+  `));
+  await continueBtn('Aku Sudah Menghafalnya ➜');
+
+  const maxMistakes = 2 + dexBonus;
+  let mistakes = 0;
+  for (let step = 0; step < sequence.length; step++) {
+    const distractors = [];
+    while (distractors.length < 2) {
+      const cand = choiceArr(symbolPool);
+      if (cand !== sequence[step] && !distractors.includes(cand)) distractors.push(cand);
+    }
+    const opts = [sequence[step], ...distractors];
+    for (let i = opts.length - 1; i > 0; i--) { const j = ri(0, i); const tmp = opts[i]; opts[i] = opts[j]; opts[j] = tmp; }
+
+    let solved = false;
+    while (!solved) {
+      render(box(null, `
+        <p class="storytext">Simbol ke-${step + 1} dari ${sequence.length} — mana yang tadi muncul di urutan ini?</p>
+        <p class="statline">❌ Kesalahan: ${mistakes}/${maxMistakes}</p>
+      `));
+      const picked = await choose(opts.map(s => ({ label: s, value: s })));
+      if (picked === sequence[step]) {
+        solved = true;
+      } else {
+        mistakes += 1;
+        if (mistakes > maxMistakes) {
+          render(box(null, `<p>💥 Ingatanmu buyar! Simbol yang salah membuat mekanisme peti terkunci makin rapat.</p>`));
+          await continueBtn('Lanjutkan ➜');
+          return false;
+        }
+        render(box(null, `<p>❌ Bukan simbol itu. Coba ingat lagi...</p>`));
+        await continueBtn('Coba Lagi ➜');
+      }
+    }
+  }
+  render(box(null, `<p class="win-title">🔓 Semua simbol teringat sempurna! Peti pun terbuka!</p>`));
+  await continueBtn('Lanjutkan ➜');
+  return true;
+}
+
+/* --- Variasi 3: Ritme Ketukan (hafalkan pola dari 3 jenis ketukan, lalu ulangi) --- */
+async function puzzleRhythmSequence(player, difficulty, chestLabel) {
+  const beatPool = ['🥁 Ketuk', '🔔 Denting', '🎶 Petik'];
+  const dexBonus = Math.floor((player.DEX || 0) / 10);
+  const len = Math.max(3, Math.min(difficulty, 4));
+  const sequence = [];
+  for (let i = 0; i < len; i++) sequence.push(ri(0, beatPool.length - 1));
+
+  render(box(`🥁 ${chestLabel}`, `
+    <p class="storytext">Peti ini dijaga mantra ritme kuno. Perhatikan pola ketukan berikut baik-baik, lalu ulangi persis sama!</p>
+    <p class="statline" style="font-size:1.1rem;text-align:center;">${sequence.map(i => beatPool[i]).join('  ➜  ')}</p>
+  `));
+  await continueBtn('Aku Sudah Menghafal Polanya ➜');
+
+  const maxMistakes = 2 + dexBonus;
+  let mistakes = 0;
+  for (let step = 0; step < sequence.length; step++) {
+    let solved = false;
+    while (!solved) {
+      render(box(null, `
+        <p class="storytext">Ketukan ke-${step + 1} dari ${sequence.length}...</p>
+        <p class="statline">❌ Kesalahan: ${mistakes}/${maxMistakes}</p>
+      `));
+      const idx = await choose(beatPool.map((b, i) => ({ label: b, value: i })));
+      if (idx === sequence[step]) {
+        solved = true;
+      } else {
+        mistakes += 1;
+        if (mistakes > maxMistakes) {
+          render(box(null, `<p>💥 Pola ritme kacau! Mantra penjaga peti gagal ditembus sepenuhnya.</p>`));
+          await continueBtn('Lanjutkan ➜');
+          return false;
+        }
+        render(box(null, `<p>❌ Ketukan meleset. Coba ingat lagi urutannya...</p>`));
+        await continueBtn('Coba Lagi ➜');
+      }
+    }
+  }
+  render(box(null, `<p class="win-title">🔓 Pola ritme sempurna! Mantra penjaga peti runtuh, peti pun terbuka!</p>`));
+  await continueBtn('Lanjutkan ➜');
+  return true;
+}
+
+/* --- Variasi 4: Teka-Teki XO (menang ATAU seri melawan penjaga peti = berhasil) --- */
+async function puzzleTicTacToe(player, difficulty, chestLabel) {
+  const board = new Array(9).fill(null);
+  const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  function winnerOf(b) {
+    for (const [a, c, d] of lines) { if (b[a] && b[a] === b[c] && b[a] === b[d]) return b[a]; }
+    return null;
+  }
+  function boardHtml() {
+    const sym = c => c === 'X' ? '❌' : c === 'O' ? '⭕' : '➖';
+    const rows = [];
+    for (let r = 0; r < 3; r++) rows.push(board.slice(r * 3, r * 3 + 3).map(sym).join('  '));
+    return `<pre style="text-align:center;font-size:1.6rem;line-height:2;margin:10px 0;">${rows.join('\n')}</pre>`;
+  }
+
+  render(box(`❌⭕ ${chestLabel}`, `
+    <p class="storytext">Penjaga peti menantangmu bermain Teka-Teki XO. Menang ATAU seri sudah cukup untuk membuka gemboknya!</p>
+  `));
+  await continueBtn('Mulai Bermain ➜');
+
+  while (true) {
+    render(box(null, boardHtml() + `<p class="statline" style="text-align:center;">Giliranmu (❌)</p>`));
+    const empties = board.map((v, i) => v ? null : i).filter(v => v !== null);
+    const idx = await choose(empties.map(i => ({ label: `Kotak ${i + 1}`, value: i })));
+    board[idx] = 'X';
+    let w = winnerOf(board);
+    if (w === 'X') {
+      render(box(null, boardHtml() + `<p class="win-title">🔓 Kamu menang! Penjaga peti mengakui kehebatanmu, gembok pun terbuka!</p>`));
+      await continueBtn('Lanjutkan ➜');
+      return true;
+    }
+    if (!board.includes(null)) {
+      render(box(null, boardHtml() + `<p class="win-title">🔓 Hasil seri! Penjaga peti tetap membukakan gemboknya untukmu.</p>`));
+      await continueBtn('Lanjutkan ➜');
+      return true;
+    }
+    const aiEmpties = board.map((v, i) => v ? null : i).filter(v => v !== null);
+    const aiIdx = choiceArr(aiEmpties);
+    board[aiIdx] = 'O';
+    w = winnerOf(board);
+    if (w === 'O') {
+      render(box(null, boardHtml() + `<p>💥 Penjaga peti menang telak. Gemboknya tetap terkunci rapat.</p>`));
+      await continueBtn('Lanjutkan ➜');
+      return false;
+    }
+    if (!board.includes(null)) {
+      render(box(null, boardHtml() + `<p class="win-title">🔓 Hasil seri! Penjaga peti tetap membukakan gemboknya untukmu.</p>`));
+      await continueBtn('Lanjutkan ➜');
+      return true;
+    }
+  }
+}
+
+/* --- Variasi 5: Cocok Pasangan Rune (memory/concentration klasik, keping tertutup dibalik berpasangan) --- */
+async function puzzleRuneMatch(player, difficulty, chestLabel) {
+  const pairCount = Math.max(2, Math.min(difficulty - 1, 3));
+  const symbolPool = ['🔥','💧','🌪️','⚡','🌑','✨','🍀','💎','🦴','👁️'];
+  const chosenSyms = [];
+  while (chosenSyms.length < pairCount) {
+    const s = choiceArr(symbolPool);
+    if (!chosenSyms.includes(s)) chosenSyms.push(s);
+  }
+  const symbols = [];
+  chosenSyms.forEach(s => { symbols.push(s); symbols.push(s); });
+  for (let i = symbols.length - 1; i > 0; i--) { const j = ri(0, i); const tmp = symbols[i]; symbols[i] = symbols[j]; symbols[j] = tmp; }
+
+  const revealed = new Array(symbols.length).fill(false);
+  const matched = new Array(symbols.length).fill(false);
+  const dexBonus = Math.floor((player.DEX || 0) / 10);
+  let attemptsLeft = pairCount * 3 + 2 + dexBonus;
+
+  render(box(`🧠 ${chestLabel}`, `
+    <p class="storytext">Sebuah papan berisi ${symbols.length} keping rune tertutup tersembul dari peti. Temukan semua pasangan rune yang cocok sebelum kesempatanmu habis!</p>
+    <p class="statline">🔁 Kesempatan Membalik: ${attemptsLeft}</p>
+  `));
+  await continueBtn('Mulai Mengingat ➜');
+
+  function boardHtml() {
+    return symbols.map((s, i) => (matched[i] || revealed[i]) ? s : '❓').join(' ');
+  }
+
+  while (matched.filter(Boolean).length < symbols.length && attemptsLeft > 0) {
+    render(box(null, `
+      <p class="storytext" style="font-size:1.5rem;letter-spacing:6px;text-align:center;">${boardHtml()}</p>
+      <p class="statline">🔁 Sisa Kesempatan: ${attemptsLeft} | ✅ Pasangan Ditemukan: ${matched.filter(Boolean).length / 2}/${pairCount}</p>
+    `));
+    const opts1 = symbols.map((s, i) => ({ label: matched[i] ? `✔️ ${i + 1}` : `❓ Keping ${i + 1}`, value: i, disabled: matched[i] }));
+    const first = await choose(opts1);
+    revealed[first] = true;
+    render(box(null, `
+      <p class="storytext" style="font-size:1.5rem;letter-spacing:6px;text-align:center;">${boardHtml()}</p>
+      <p class="statline">Keping ${first + 1} = ${symbols[first]}. Pilih keping kedua!</p>
+    `));
+    const opts2 = symbols.map((s, i) => ({ label: (matched[i] || i === first) ? (matched[i] ? `✔️ ${i + 1}` : `(${i + 1})`) : `❓ Keping ${i + 1}`, value: i, disabled: matched[i] || i === first }));
+    const second = await choose(opts2);
+    revealed[second] = true;
+    attemptsLeft -= 1;
+    if (symbols[first] === symbols[second]) {
+      matched[first] = true; matched[second] = true;
+      render(box(null, `<p>✅ Cocok! ${symbols[first]} bertemu pasangannya!</p>`));
+    } else {
+      revealed[first] = false; revealed[second] = false;
+      render(box(null, `<p>❌ Tidak cocok. ${symbols[first]} dan ${symbols[second]} kembali tertutup...</p>`));
+    }
+    await continueBtn('Lanjutkan ➜');
+  }
+
+  const success = matched.filter(Boolean).length >= symbols.length;
+  if (success) {
+    render(box(null, `<p class="win-title">🔓 Semua pasangan rune ditemukan! Mekanisme peti terbuka!</p>`));
+  } else {
+    render(box(null, `<p>💥 Kesempatan habis sebelum semua rune cocok. Peti tetap terkunci sebagian.</p>`));
+  }
+  await continueBtn('Lanjutkan ➜');
+  return success;
+}
+
 /* ============================================================
    PETI RAMPASAN BOSS
    Setiap boss (mini-boss maupun boss zona) yang tumbang selalu
@@ -1638,7 +1870,7 @@ async function handleBossChest(player, floor, enemy) {
   render(box('📦 PETI RAMPASAN BOSS 📦', `<p class="storytext">Di balik reruntuhan sarang ${esc(enemy.name)}, tersembunyi sebuah peti besi besar berlapis rune pelindung — gemboknya jauh lebih rumit daripada peti biasa di koridor.</p>`));
   await continueBtn('Coba Bongkar Peti ➜');
 
-  const opened = await pickLockPuzzle(player, pinCount, 'PETI RAMPASAN BOSS');
+  const opened = await runChestPuzzle(player, pinCount, 'PETI RAMPASAN BOSS');
   const goldFound = ri(150, 350) * zId * (isMajorBoss ? 2 : 1);
 
   if (opened) {
@@ -2854,7 +3086,7 @@ async function triggerStoryOrEvent(player, floor) {
     render(box('📦 PETI HARTA TERSEMBUNYI! 📦', `<p class="storytext">Kamu menemukan sebuah peti kuno tersembunyi di balik reruntuhan, namun gemboknya masih utuh terkunci rapat.</p>`));
     await continueBtn('Coba Bongkar Gemboknya ➜');
 
-    const opened = await pickLockPuzzle(player, 3, 'PETI HARTA TERSEMBUNYI');
+    const opened = await runChestPuzzle(player, 3, 'PETI HARTA TERSEMBUNYI');
     const goldFound = ri(40, 90) * zone.id;
     if (opened) {
       player.gold += goldFound;
