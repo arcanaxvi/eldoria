@@ -1881,9 +1881,31 @@ function mgCustomSkillMechanic(player, enemy, skill) {
     if (type === 'holy' || type === 'poison') {
       const total=type==='holy'?4:3; let i=0,h=0; const row=elFromHtml(`<div class="btnrow"></div>`); const p=elFromHtml(`<p class="mg-hint">Target 1/${total}</p>`); wrap.appendChild(p);wrap.appendChild(row); const next=()=>{if(i>=total){finish(h,total,1.7);return;}row.innerHTML='';const good=ri(0,3);for(let j=0;j<4;j++){const b=elFromHtml(`<button class="btn">${type==='holy'?'☀️':'☠️'} ${j+1}</button>`);b.onclick=()=>{h+=j===good?1:0;i++;next()};row.appendChild(b)}p.textContent=`${type==='holy'?'Segel':'Dosis'} ${i+1}/${total}`};next();return;
     }
-    // SOUL: moving orbs, collect them.
+    // SOUL: moving orbs, collect them — dibuat lebih ramah agar tombol mudah ditangkap.
     if (type === 'soul') {
-      const field=elFromHtml(`<div style="position:relative;height:180px;background:var(--bg-3);border:1px solid var(--border);border-radius:12px;overflow:hidden"></div>`);wrap.appendChild(field);let h=0,total=5,idx=0;const spawn=()=>{if(idx>=total){finish(h,total,1.75);return;}const orb=elFromHtml(`<button style="position:absolute;border:1px solid var(--gold);border-radius:50%;width:42px;height:42px;background:#24112f;color:#fff;cursor:pointer">👻</button>`);orb.style.left=ri(5,88)+'%';orb.style.top=ri(5,70)+'%';field.appendChild(orb);let dead=false;const tm=setTimeout(()=>{if(!dead){dead=true;orb.remove();idx++;spawn()}},700);orb.onclick=()=>{if(dead)return;dead=true;clearTimeout(tm);h++;idx++;orb.remove();spawn()}};spawn();return;
+      const field=elFromHtml(`<div style="position:relative;height:200px;background:var(--bg-3);border:1px solid var(--border);border-radius:12px;overflow:hidden"></div>`);
+      wrap.appendChild(field);
+      let h=0,total=5,idx=0;
+      const spawn=()=>{
+        if(idx>=total){finish(h,total,1.75);return;}
+        const orb=elFromHtml(`<button aria-label="Tangkap jiwa" style="position:absolute;border:2px solid var(--gold);border-radius:50%;width:58px;height:58px;background:#24112f;color:#fff;cursor:pointer;font-size:1.15rem;touch-action:manipulation;box-shadow:0 0 10px rgba(215,173,85,.28)">👻</button>`);
+        orb.style.left=ri(4,82)+'%';
+        orb.style.top=ri(4,68)+'%';
+        field.appendChild(orb);
+        let dead=false;
+        const tm=setTimeout(()=>{if(!dead){dead=true;orb.remove();idx++;spawn()}},1300);
+        orb.onclick=()=>{
+          if(dead)return;
+          dead=true;
+          clearTimeout(tm);
+          h++;
+          idx++;
+          orb.remove();
+          spawn();
+        };
+      };
+      spawn();
+      return;
     }
     // Fallback custom challenge.
     const b=elFromHtml(`<button class="btn primary">${esc(skill.signature_title)} — AKTIFKAN</button>`);wrap.appendChild(b);b.onclick=()=>finish(1,1,1.6);
