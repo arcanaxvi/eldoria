@@ -1271,13 +1271,13 @@ class Player {
     this.base_atk = 12 + this.race_info.atk + this.base_class_info.atk;
     this.base_def = 2 + (this.race_info.def || 0) + (this.base_class_info.def || 0);
 
-    const initialSkill = {
+    const initialSkill = decorateSkill({
       name: this.base_class_info.skill_name, cost: this.base_class_info.skill_cost,
       dmg: this.base_class_info.skill_dmg, heal: this.base_class_info.skill_heal || 0,
       lifesteal: this.base_class_info.skill_lifesteal || 0,
       poison_turns: this.base_class_info.skill_poison_turns || 0,
       poison_dmg: this.base_class_info.skill_poison_dmg || 0,
-    };
+    });
     this.learned_skills = [initialSkill];
     this.active_skills = [Object.assign({}, initialSkill)];
 
@@ -1446,6 +1446,7 @@ function getFloorBoss(floor, player) {
 }
 
 function learnSkill(player, skill) {
+  skill = decorateSkill(skill);
   if (!player.learned_skills.some(s => s.name === skill.name)) {
     player.learned_skills.push(Object.assign({}, skill));
     if (player.active_skills.length < MAX_ACTIVE_SKILLS) player.active_skills.push(Object.assign({}, skill));
@@ -1630,11 +1631,11 @@ async function checkAndPromoteClass(player) {
   player.recalcHpMp();
   player.hp = player.max_hp; player.mp = player.max_mp;
 
-  const newSkill = {
+  const newSkill = decorateSkill({
     name: chosen.skill_name, cost: chosen.skill_cost, dmg: chosen.skill_dmg,
     heal: chosen.skill_heal || 0, lifesteal: chosen.skill_lifesteal || 0,
     poison_turns: chosen.skill_poison_turns || 0, poison_dmg: chosen.skill_poison_dmg || 0,
-  };
+  });
   learnSkill(player, newSkill);
 
   render(box('🎉 EVOLUSI BERHASIL!', `
@@ -1649,6 +1650,150 @@ async function checkAndPromoteClass(player) {
 }
 
 /* ============================================================
+   SISTEM SKILL SIGNATURE — SETIAP JURUS PUNYA MEKANIK SENDIRI
+   ------------------------------------------------------------
+   Tidak lagi semua skill memakai Rune Combo yang sama.
+   Setiap skill diberi signature berdasarkan nama jurus: ada timing,
+   charge, combo arah, bidik, refleks, chain, shield, meteor, poison,
+   soul harvest, gravity, genesis, dll. Parameter juga diskalakan dari
+   DEX/INT/SPD dan tier skill sehingga jurus lama sampai tier 40 tetap
+   terasa berbeda.
+   ============================================================ */
+function skillHash(name) {
+  let h = 2166136261;
+  for (let i = 0; i < String(name).length; i++) { h ^= String(name).charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+const SKILL_SIGNATURES = [
+  ['timing','⏱️ TIMING PRESISI','Tekan saat inti serangan masuk lingkaran emas.'],
+  ['charge','🔋 CHARGE OVERLOAD','Tahan tombol lalu lepas tepat di zona inti.'],
+  ['mash','🔥 RAGE INPUT','Tekan secepat mungkin untuk menambah daya jurus.'],
+  ['rhythm','🎵 RHYTHM CHAIN','Ikuti 4 ketukan berurutan tanpa memutus ritme.'],
+  ['reflex','✨ REFLEX TARGET','Hancurkan target yang muncul sebelum menghilang.'],
+  ['aim','🎯 WEAKPOINT AIM','Bidik titik lemah yang bergerak untuk bonus besar.'],
+  ['rune','🜁 ARCANE SEQUENCE','Aktifkan simbol yang menyala dalam urutan cepat.'],
+  ['parry','🛡️ IMPACT PARRY','Tekan PARRY saat cincin bertemu untuk mengubah momentum menjadi damage.'],
+  ['memory','🧠 MEMORY CAST','Ingat urutan simbol lalu ulangi untuk menjaga stabilitas skill.'],
+  ['slash','⚔️ SLASH DIRECTION','Pilih arah tebasan yang tepat tiga kali berturut-turut.'],
+  ['meteor','☄️ METEOR IMPACT','Pilih zona jatuh meteor; semakin dekat pusat, semakin brutal.'],
+  ['freeze','❄️ FREEZE WINDOW','Tahan inti es sampai indikator tepat di titik beku.'],
+  ['shadow','🌑 SHADOW WINDOW','Serang hanya ketika target membuka celah bayangan.'],
+  ['holy','☀️ HOLY ALIGNMENT','Selaraskan cahaya dengan segel suci yang bergerak.'],
+  ['poison','☠️ TOXIN STACK','Rangkai tiga dosis racun; combo menentukan durasi efek.'],
+  ['soul','💀 SOUL HARVEST','Tangkap jiwa yang beterbangan sebelum waktunya habis.'],
+  ['gravity','🌀 GRAVITY PULL','Tarik inti target ke pusat gravitasi dengan drag.'],
+  ['genesis','🌟 GENESIS CHARGE','Bangun energi dari nol lalu lepaskan di puncak daya.'],
+  ['void','🕳️ VOID BREAK','Klik celah dimensi yang muncul acak untuk menembus pertahanan.'],
+  ['shield','🛡️ AEGIS REFLECT','Pantulkan proyektil balik dengan timing perisai.']
+];
+
+function decorateSkill(skill) {
+  if (!skill || !skill.name) return skill;
+  if (skill.signature) return skill;
+  const idx = skillHash(skill.name) % SKILL_SIGNATURES.length;
+  const sig = SKILL_SIGNATURES[idx];
+  return Object.assign({}, skill, {
+    signature: sig[0], signature_title: sig[1], signature_hint: sig[2],
+    signature_id: idx,
+    // Higher-tier skills get tighter windows rather than simply larger numbers.
+    mechanic_level: Math.max(1, Math.floor((skill.dmg || 20) / 35))
+  });
+}
+
+function skillResult(mult, tier, label, extra) {
+  return Object.assign({ mult, tier, label }, extra || {});
+}
+
+function skillSignatureMiniGame(player, enemy, skill) {
+  skill = decorateSkill(skill);
+  const type = skill.signature;
+  // Existing polished minigames are reused only when they match the skill's signature.
+  if (type === 'timing') return mgTimingStrike(player, enemy);
+  if (type === 'charge') return mgHoldCharge(player, enemy);
+  if (type === 'mash') return mgMashButton(player, enemy);
+  if (type === 'rhythm') return mgRhythmCombo(player, enemy);
+  if (type === 'reflex') return mgReflexTargets(player, enemy);
+  if (type === 'aim') return mgAimReticle(player, enemy);
+  if (type === 'rune') return mgRuneCombo(player, enemy);
+  if (type === 'parry') return mgParryQTE(player, enemy);
+  if (type === 'memory') return mgMemoryGuard(player, enemy);
+  return mgCustomSkillMechanic(player, enemy, skill);
+}
+
+/* 10 signature mechanics untuk jurus yang tidak cocok dengan mekanik
+   serangan biasa. Semuanya menghasilkan tier/mult yang sama sehingga
+   engine damage tetap konsisten. */
+function mgCustomSkillMechanic(player, enemy, skill) {
+  return new Promise(resolve => {
+    const type = skill.signature;
+    const level = Math.max(1, skill.mechanic_level || 1);
+    const wrap = document.createElement('div');
+    const titleMap = {
+      slash:'⚔️ SLASH DIRECTION', meteor:'☄️ METEOR IMPACT', freeze:'❄️ FREEZE WINDOW',
+      shadow:'🌑 SHADOW WINDOW', holy:'☀️ HOLY ALIGNMENT', poison:'☠️ TOXIN STACK',
+      soul:'💀 SOUL HARVEST', gravity:'🌀 GRAVITY PULL', genesis:'🌟 GENESIS CHARGE',
+      void:'🕳️ VOID BREAK', shield:'🛡️ AEGIS REFLECT'
+    };
+    const hintMap = {
+      slash:'Pilih arah tebasan yang sesuai dengan indikator.',
+      meteor:'Klik sedekat mungkin dengan pusat lingkaran dampak.',
+      freeze:'Tahan tombol dan lepas ketika kristal tepat di garis putih.',
+      shadow:'Tunggu celah terbuka, lalu tekan SERANG sekali.',
+      holy:'Klik segel yang sedang bercahaya sebelum berpindah.',
+      poison:'Aktifkan tiga vial racun tanpa salah urutan.',
+      soul:'Klik semua jiwa yang muncul sebelum mereka lenyap.',
+      gravity:'Klik/tahan inti dan geser sedekat mungkin ke pusat.',
+      genesis:'Tahan tombol, lepaskan ketika meter menyentuh inti.',
+      void:'Klik retakan dimensi yang berkedip; salah klik mengurangi stabilitas.',
+      shield:'Tekan REFLECT tepat ketika proyektil memasuki cincin.'
+    };
+    render(box(titleMap[type] || skill.signature_title, `<p class="storytext">${hintMap[type] || skill.signature_hint}</p>`));
+    const status = elFromHtml(`<p class="mg-hint">Signature: ${esc(skill.name)}</p>`);
+    wrap.appendChild(status);
+    appendEl(wrap);
+
+    const finish = (hits, total, perfectMult=1.65) => {
+      const ratio = hits / total;
+      let tier='miss', mult=.5, label=`💢 ${skill.name}: mekanik gagal (${hits}/${total})`;
+      if (ratio >= 1) { tier='perfect'; mult=perfectMult; label=`🌟 ${skill.name}: SIGNATURE PERFECT!`; }
+      else if (ratio >= .5) { tier='good'; mult=1.15; label=`✅ ${skill.name}: signature stabil (${hits}/${total})`; }
+      mgFinish(wrap, status, label, skillResult(mult,tier,label,{hits,total}), resolve);
+    };
+
+    // SLASH: three directional choices.
+    if (type === 'slash') {
+      const dirs=['⬅️ KIRI','⬆️ ATAS','➡️ KANAN','⬇️ BAWAH']; let n=0,h=0;
+      const target=ri(0,3), row=elFromHtml(`<div class="btnrow"></div>`); wrap.appendChild(row);
+      const prompt=elFromHtml(`<p class="mg-hint">Arah tebasan ${n+1}/3</p>`); wrap.insertBefore(prompt,status);
+      const next=()=>{ if(n>=3){finish(h,3,1.7);return;} prompt.textContent=`Arah tebasan ${n+1}/3`; const t=ri(0,3); row.innerHTML=''; dirs.forEach((d,i)=>{const b=elFromHtml(`<button class="btn">${d}</button>`);b.onclick=()=>{h+=i===t?1:0;n++;next()};row.appendChild(b)}); }; next(); return;
+    }
+    // METEOR/GRAVITY: click a moving center in a field.
+    if (type === 'meteor' || type === 'gravity') {
+      const field=elFromHtml(`<div style="position:relative;height:190px;background:var(--bg-3);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin:14px 0"></div>`); const core=elFromHtml(`<div style="position:absolute;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--gold);background:radial-gradient(circle,#fff,#8a5cf0);cursor:pointer;font-size:1.2rem">${type==='meteor'?'☄️':'🌀'}</div>`); field.appendChild(core); wrap.appendChild(field); let t0=performance.now(),raf,done=false; const tick=t=>{const a=(t-t0)*.003; core.style.left=(45+35*Math.cos(a))+'%';core.style.top=(35+30*Math.sin(a*1.3))+'%'; if(!done)raf=requestAnimationFrame(tick)}; raf=requestAnimationFrame(tick); const b=elFromHtml(`<button class="btn primary">${type==='meteor'?'💥 HANTAM!':'🌀 TARIK!'}</button>`); wrap.appendChild(b); b.onclick=()=>{done=true;cancelAnimationFrame(raf);const x=parseFloat(core.style.left),y=parseFloat(core.style.top),dist=Math.hypot(x-50,y-50);finish(dist<9?1:dist<20?.6:0,1,1.75)}; return;
+    }
+    // FREEZE/GENESIS: hold-release meter.
+    if (type === 'freeze' || type === 'genesis') {
+      const track=elFromHtml(`<div style="height:32px;background:var(--bg-3);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin:14px 0"><div class="sig-fill" style="height:100%;width:0%;background:linear-gradient(90deg,#4c78a8,#d7ad55)"></div></div>`); const fill=track.firstElementChild; wrap.appendChild(track); const btn=elFromHtml(`<button class="btn primary">${type==='freeze'?'❄️ TAHAN & BEKUKAN':'🌟 TAHAN & LEPAS'}</button>`); wrap.appendChild(btn); let val=0,dir=1,timer=setInterval(()=>{val+=dir*2;if(val>=100||val<=0)dir*=-1;fill.style.width=val+'%'},30),holding=false; const stop=()=>{if(holding){holding=false;clearInterval(timer);const d=Math.abs(val-70);finish(d<7?1:d<20?.6:0,1,1.7)}}; btn.onpointerdown=()=>holding=true; btn.onpointerup=stop; btn.onpointerleave=stop; return;
+    }
+    // SHADOW/VOID/SHIELD: reactive single-window target.
+    if (type === 'shadow' || type === 'void' || type === 'shield') {
+      const b=elFromHtml(`<button class="btn primary">${type==='shadow'?'🌑 TUNGGU CELAH':'🛡️ REFLECT'}</button>`); wrap.appendChild(b); let armed=false,closed=false; const timer=setTimeout(()=>{armed=true;status.textContent='⚡ CELAH TERBUKA — SEKARANG!';b.textContent=type==='shield'?'🛡️ PANTULKAN!':'⚔️ SERANG SEKARANG!';setTimeout(()=>{if(!closed){closed=true;finish(0,1)}},Math.max(500,900-level*70))},700); b.onclick=()=>{if(closed)return;closed=true;clearTimeout(timer);finish(armed?1:0,1,1.8)}; return;
+    }
+    // HOLY/POISON: sequential target clicks.
+    if (type === 'holy' || type === 'poison') {
+      const total=type==='holy'?4:3; let i=0,h=0; const row=elFromHtml(`<div class="btnrow"></div>`); const p=elFromHtml(`<p class="mg-hint">Target 1/${total}</p>`); wrap.appendChild(p);wrap.appendChild(row); const next=()=>{if(i>=total){finish(h,total,1.7);return;}row.innerHTML='';const good=ri(0,3);for(let j=0;j<4;j++){const b=elFromHtml(`<button class="btn">${type==='holy'?'☀️':'☠️'} ${j+1}</button>`);b.onclick=()=>{h+=j===good?1:0;i++;next()};row.appendChild(b)}p.textContent=`${type==='holy'?'Segel':'Dosis'} ${i+1}/${total}`};next();return;
+    }
+    // SOUL: moving orbs, collect them.
+    if (type === 'soul') {
+      const field=elFromHtml(`<div style="position:relative;height:180px;background:var(--bg-3);border:1px solid var(--border);border-radius:12px;overflow:hidden"></div>`);wrap.appendChild(field);let h=0,total=5,idx=0;const spawn=()=>{if(idx>=total){finish(h,total,1.75);return;}const orb=elFromHtml(`<button style="position:absolute;border:1px solid var(--gold);border-radius:50%;width:42px;height:42px;background:#24112f;color:#fff;cursor:pointer">👻</button>`);orb.style.left=ri(5,88)+'%';orb.style.top=ri(5,70)+'%';field.appendChild(orb);let dead=false;const tm=setTimeout(()=>{if(!dead){dead=true;orb.remove();idx++;spawn()}},700);orb.onclick=()=>{if(dead)return;dead=true;clearTimeout(tm);h++;idx++;orb.remove();spawn()}};spawn();return;
+    }
+    // Fallback custom challenge.
+    const b=elFromHtml(`<button class="btn primary">${esc(skill.signature_title)} — AKTIFKAN</button>`);wrap.appendChild(b);b.onclick=()=>finish(1,1,1.6);
+  });
+}
+
+/* ============================================================
    SISTEM PERTEMPURAN
    ============================================================ */
 async function chooseSkillForBattle(player) {
@@ -1656,7 +1801,7 @@ async function chooseSkillForBattle(player) {
   const opts = player.active_skills.map((sk, idx) => {
     let cost = sk.cost;
     if (player.race_info.mp_cost_reduce) cost = Math.max(1, Math.floor(cost * (1 - player.race_info.mp_cost_reduce)));
-    const label = `${esc(sk.name)} (${cost} MP) → +${sk.dmg || 0} DMG${sk.heal ? ` | Heal ${sk.heal}` : ''}${sk.lifesteal ? ` | Lifesteal ${Math.round(sk.lifesteal*100)}%` : ''}${sk.poison_turns ? ` | Racun ${sk.poison_dmg}/turn` : ''}`;
+    const sig = decorateSkill(sk); const label = `${esc(sk.name)} (${cost} MP) → ${esc(sig.signature_title)} | +${sk.dmg || 0} DMG${sk.heal ? ` | Heal ${sk.heal}` : ''}${sk.lifesteal ? ` | Lifesteal ${Math.round(sk.lifesteal*100)}%` : ''}${sk.poison_turns ? ` | Racun ${sk.poison_dmg}/turn` : ''}`;
     return { label, value: idx };
   });
   opts.push({ label: 'Batal', value: -1, cls: 'danger' });
@@ -2132,7 +2277,7 @@ function mgTimingStrike(player, enemy) {
       let tier, mult, label;
       if (pos >= perfStart && pos <= perfStart + perfW) { tier = 'perfect'; mult = 1.6; label = '🌟 WAKTU SEMPURNA!'; }
       else if (pos >= goodStart && pos <= goodStart + goodW) { tier = 'good'; mult = 1.15; label = '✅ Pukulan Bagus!'; }
-      else { tier = 'miss'; mult = 0.6; label = '💢 Ayunanmu meleset!'; }
+      else { tier = 'miss'; mult = 0.5; label = '💢 Ayunanmu meleset! Damage -50%'; }
       mgFinish(wrap, statusEl, label, { tier, mult, label }, resolve);
     });
   });
@@ -2173,7 +2318,7 @@ function mgHoldCharge(player, enemy) {
       const dist = Math.abs(fill - (zoneStart + zoneW / 2));
       if (fill >= zoneStart && fill <= zoneStart + zoneW && dist <= zoneW * 0.28) { tier = 'perfect'; mult = 1.6; label = '🌟 TENAGA PENUH SEMPURNA!'; }
       else if (fill >= zoneStart && fill <= zoneStart + zoneW) { tier = 'good'; mult = 1.15; label = '✅ Tenaga cukup kuat!'; }
-      else { tier = 'miss'; mult = 0.6; label = '💢 Waktu lepasmu meleset!'; }
+      else { tier = 'miss'; mult = 0.5; label = '💢 Waktu lepasmu meleset! Damage -50%'; }
       mgFinish(wrap, statusEl, label, { tier, mult, label }, resolve);
     }
     btn.addEventListener('pointerdown', (e) => {
@@ -2216,7 +2361,7 @@ function mgMashButton(player, enemy) {
       let tier, mult, label;
       if (clicks >= targetPerfect) { tier = 'perfect'; mult = 1.6; label = '🌟 RENTETAN PUKULAN SEMPURNA!'; }
       else if (clicks >= targetGood) { tier = 'good'; mult = 1.15; label = '✅ Rentetan cukup deras!'; }
-      else { tier = 'miss'; mult = 0.6; label = '💢 Terlalu lambat memukul!'; }
+      else { tier = 'miss'; mult = 0.5; label = '💢 Terlalu lambat memukul! Damage -50%'; }
       mgFinish(wrap, statusEl, label, { tier, mult, label }, resolve);
     }, duration);
   });
@@ -2265,7 +2410,7 @@ function mgRhythmCombo(player, enemy) {
         let tier, mult, label;
         if (hits >= totalBeats) { tier = 'perfect'; mult = 1.6; label = '🌟 KOMBO SEMPURNA 3/3!'; }
         else if (hits >= 1) { tier = 'good'; mult = 1.15; label = `✅ Kombo lumayan (${hits}/${totalBeats})!`; }
-        else { tier = 'miss'; mult = 0.6; label = '💢 Seluruh ketukan meleset!'; }
+        else { tier = 'miss'; mult = 0.5; label = '💢 Seluruh ketukan meleset! Damage -50%'; }
         mgFinish(wrap, statusEl, label, { tier, mult, label }, resolve);
       } else {
         newBeat();
@@ -2305,7 +2450,7 @@ function mgReflexTargets(player, enemy) {
         let tier, mult, label;
         if (hits >= total) { tier = 'perfect'; mult = 1.6; label = '🌟 SEMUA TARGET KENA!'; }
         else if (hits >= Math.ceil(total / 2)) { tier = 'good'; mult = 1.15; label = `✅ Refleks lumayan (${hits}/${total})!`; }
-        else { tier = 'miss'; mult = 0.6; label = `💢 Banyak target lolos (${hits}/${total})!`; }
+        else { tier = 'miss'; mult = 0.5; label = `💢 Banyak target lolos (${hits}/${total})! Damage -50%`; }
         mgFinish(wrap, statusEl, label, { tier, mult, label }, resolve);
         return;
       }
@@ -2351,7 +2496,7 @@ function mgAimReticle(player, enemy) {
       let tier, mult, label;
       if (dist <= 7) { tier = 'perfect'; mult = 1.6; label = '🌟 TEMBAKAN TEPAT SASARAN!'; }
       else if (dist <= 15) { tier = 'good'; mult = 1.15; label = '✅ Nyaris kena titik lemah!'; }
-      else { tier = 'miss'; mult = 0.6; label = '💢 Bidikan meleset jauh!'; }
+      else { tier = 'miss'; mult = 0.5; label = '💢 Bidikan meleset jauh! Damage -50%'; }
       mgFinish(wrap, statusEl, label, { tier, mult, label }, resolve);
     });
   });
@@ -2391,7 +2536,7 @@ function mgRuneCombo(player, enemy) {
         let tier, mult, label;
         if (hits >= total) { tier = 'perfect'; mult = 1.6; label = '🌟 MANTRA SEMPURNA TERUCAP!'; }
         else if (hits >= Math.ceil(total / 2)) { tier = 'good'; mult = 1.15; label = `✅ Mantra cukup stabil (${hits}/${total})!`; }
-        else { tier = 'miss'; mult = 0.6; label = `💢 Mantra kacau (${hits}/${total})!`; }
+        else { tier = 'miss'; mult = 0.5; label = `💢 Mantra kacau (${hits}/${total})! Damage -50%`; }
         mgFinish(wrap, statusEl, label, { tier, mult, label }, resolve);
         return;
       }
@@ -2648,7 +2793,7 @@ async function battle(player, enemy, floor) {
         if (player.mp < mpCost) { msg = `⚠️ MP tidak mencukupi! Butuh ${mpCost} MP.`; skipPost = true; }
         else {
           player.mp -= mpCost;
-          const mg = await mgRuneCombo(player, enemy);
+          const mg = await skillSignatureMiniGame(player, enemy, chosenSkill);
           const intBonus = Math.floor(player.INT / 2);
           let skillDmg = Math.floor((player.atk + (chosenSkill.dmg || 0) + intBonus + ri(8, 20)) * mg.mult);
           skillDmg = Math.max(1, skillDmg - Math.floor(enemy.defense / 3));
