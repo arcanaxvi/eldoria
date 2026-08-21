@@ -1047,6 +1047,50 @@ body::before{ animation: eldoriaVignettePulse 7s ease-in-out infinite; }
 /* Hormati preferensi kurangi gerak (mengikuti aturan global yang sudah ada) */
 </style>
 
+<style id="eldoria-chest-puzzle-widgets">
+/* ---------- Papan Teka-Teki XO (klik langsung sel) ---------- */
+.ttt-board{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:260px;margin:16px auto 6px;}
+.ttt-cell{aspect-ratio:1/1;background:var(--bg-3);border:1px solid var(--border);border-radius:10px;font-size:1.7rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .12s ease, border-color .12s ease, background .12s ease;user-select:none;}
+.ttt-cell:hover:not(.filled){border-color:var(--primary-light,var(--primary));background:var(--bg-2);transform:translateY(-2px);}
+.ttt-cell.filled{cursor:not-allowed;}
+.ttt-cell.x{color:var(--gold);}
+.ttt-cell.o{color:var(--red);}
+
+/* ---------- Simon Rune (flash otomatis, klik pad urut) ---------- */
+.simon-pad-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;max-width:260px;margin:16px auto 6px;}
+.simon-pad{aspect-ratio:1/1;border-radius:14px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.9rem;cursor:pointer;opacity:.5;transition:opacity .12s ease, transform .1s ease, box-shadow .12s ease;user-select:none;}
+.simon-pad:hover{opacity:.75;}
+.simon-pad.active{opacity:1;transform:scale(1.06);box-shadow:0 0 24px currentColor;}
+.simon-pad.disabled{pointer-events:none;}
+.simon-pad[data-pad="0"]{background:#5a1f1f;color:#ff8f7a;}
+.simon-pad[data-pad="1"]{background:#1f3f5a;color:#7fc4ff;}
+.simon-pad[data-pad="2"]{background:#1f5a34;color:#82f0a5;}
+.simon-pad[data-pad="3"]{background:#5a4a1f;color:#ffdd82;}
+
+/* ---------- Lintasan Ketukan Ritme (marker bergerak, tap tepat waktu) ---------- */
+.tap-track{position:relative;height:42px;background:var(--bg-3);border:1px solid var(--border);border-radius:21px;margin:16px 4px 6px;overflow:hidden;}
+.tap-zone{position:absolute;top:0;bottom:0;background:rgba(224,182,76,0.3);border-left:2px dashed var(--gold);border-right:2px dashed var(--gold);}
+.tap-marker{position:absolute;top:2px;bottom:2px;width:9px;border-radius:5px;background:var(--primary-light,var(--primary));box-shadow:0 0 10px var(--primary);}
+.tap-btn-wrap{text-align:center;margin:12px 0 4px;}
+.tap-btn-wrap .btn{min-width:160px;}
+
+/* ---------- Dial Gembok Pin (jarum berputar, kunci di zona emas) ---------- */
+.lock-dial-wrap{display:flex;justify-content:center;margin:16px 0 4px;}
+.lock-dial{position:relative;width:170px;height:170px;border-radius:50%;border:3px solid var(--border);box-shadow:inset 0 0 18px rgba(0,0,0,.45);}
+.lock-needle{position:absolute;left:50%;top:50%;width:4px;height:74px;background:var(--gold);transform-origin:50% 100%;margin-left:-2px;margin-top:-74px;border-radius:2px;box-shadow:0 0 8px var(--gold);}
+.lock-dial-center{position:absolute;left:50%;top:50%;width:14px;height:14px;background:var(--border);border-radius:50%;margin:-7px 0 0 -7px;}
+
+/* ---------- Kartu Rune Terbalik (memory/concentration klasik) ---------- */
+.card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;max-width:300px;margin:16px auto 6px;}
+.flip-card{aspect-ratio:3/4;perspective:600px;cursor:pointer;}
+.flip-card-inner{position:relative;width:100%;height:100%;transition:transform .35s ease;transform-style:preserve-3d;}
+.flip-card.flipped .flip-card-inner,.flip-card.matched .flip-card-inner{transform:rotateY(180deg);}
+.flip-card-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;border:1px solid var(--border);}
+.flip-card-back{background:linear-gradient(145deg,var(--bg-3),var(--bg-2));color:var(--gold-dim);}
+.flip-card-front{background:linear-gradient(145deg,#2b2b40,#1c1c2b);transform:rotateY(180deg);}
+.flip-card.matched .flip-card-front{border-color:var(--gold);box-shadow:0 0 12px rgba(224,182,76,.35);}
+</style>
+
 </head>
 <body>
 <div id="app">
@@ -1356,6 +1400,7 @@ function render(html) {
   window.scrollTo(0, 0);
 }
 function appendEl(el) { screenEl.appendChild(el); }
+function elFromHtml(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
 
 function choose(options) {
   return new Promise(resolve => {
@@ -1572,16 +1617,19 @@ function renderBattleScreen(player, enemy, floor, msg) {
 }
 
 /* ============================================================
-   SISTEM TEKA-TEKI PETI HARTA — 5 VARIASI
+   SISTEM TEKA-TEKI PETI HARTA — 5 VARIASI (INTERAKTIF NYATA)
    Dipakai setiap kali menemukan peti — entah di koridor biasa
    maupun rampasan boss. Setiap kali peti ditemukan, satu dari
-   5 jenis teka-teki dipilih secara ACAK: Gembok Pin, Ingatan
-   Simbol, Ritme Ketukan, Teka-Teki XO, dan Cocok Pasangan Rune.
-   Semua versi dibuat cukup RINGAN & toleran (banyak percobaan
-   ulang, peluang tebakan lebih besar) supaya tetap seru tanpa
-   terlalu menyulitkan. DEX memberi sedikit toleransi kesalahan
-   ekstra. Gagal total = peti macet, hanya dapat sebagian kecil
-   hadiah "konsolasi" (ditangani di titik pemanggilan).
+   5 jenis teka-teki dipilih secara ACAK: Dial Gembok Pin, Simon
+   Rune (ingatan), Lintasan Ketukan Ritme, Papan Teka-Teki XO,
+   dan Kartu Rune Terbalik (memory/concentration). Semua puzzle
+   ini benar-benar interaktif — klik langsung pada widget, bukan
+   sekadar menekan tombol pilihan berurutan — namun tetap dibuat
+   RINGAN & toleran (zona/ambang lebar, banyak percobaan ulang)
+   supaya seru tanpa terlalu menyulitkan. DEX memberi sedikit
+   toleransi kesalahan ekstra. Gagal total = peti macet, hanya
+   dapat sebagian kecil hadiah "konsolasi" (ditangani di titik
+   pemanggilan).
    ============================================================ */
 async function runChestPuzzle(player, difficulty, chestLabel) {
   const types = ['lockpick', 'memory', 'rhythm', 'tictactoe', 'runematch'];
@@ -1593,274 +1641,302 @@ async function runChestPuzzle(player, difficulty, chestLabel) {
   return await puzzleRuneMatch(player, difficulty, chestLabel);
 }
 
-/* --- Variasi 1: Gembok Pin (2 pilihan tekanan, lebih toleran) --- */
+function puzzleEndBtn(wrap, statusEl, success, msg, resolve) {
+  statusEl.className = success ? 'win-title' : '';
+  statusEl.textContent = msg;
+  const endWrap = document.createElement('div');
+  endWrap.className = 'btnrow';
+  const b = document.createElement('button');
+  b.className = 'btn primary';
+  b.textContent = 'Lanjutkan ➜';
+  b.onclick = () => { wrap.remove(); resolve(success); };
+  endWrap.appendChild(b);
+  appendEl(endWrap);
+}
+
+/* --- Variasi 1: Dial Gembok Pin — jarum berputar terus, tekan KUNCI tepat saat berada di zona emas --- */
 async function puzzleLockpick(player, difficulty, chestLabel) {
-  const dexBonus = Math.floor((player.DEX || 0) / 10);
-  const pinCount = Math.max(2, Math.min(difficulty, 4));
-  const maxMistakes = 3 + dexBonus;
-  let mistakes = 0;
+  return await new Promise(resolve => {
+    const dexBonus = Math.floor((player.DEX || 0) / 10);
+    const pinCount = Math.max(2, Math.min(difficulty, 4));
+    const maxMistakes = 3 + dexBonus;
+    let pin = 0, mistakes = 0;
 
-  render(box(`🔐 ${chestLabel}`, `
-    <p class="storytext">Gemboknya dipenuhi mekanisme pin kuno. Gunakan jepit rambut curianmu untuk merasakan tekanan tiap pin sebelum menekannya ke posisi yang tepat.</p>
-    <p class="statline">🔧 Jumlah Pin: ${pinCount} | ❌ Toleransi Kesalahan: ${maxMistakes}${dexBonus > 0 ? ` (bonus DEX +${dexBonus})` : ''}</p>
-  `));
-  await continueBtn('Mulai Membongkar Gembok ➜');
+    render(box(`🔐 ${chestLabel}`, `<p class="storytext">Gemboknya dipenuhi mekanisme pin kuno. Jarum pengait berputar terus — tekan tombol KUNCI tepat saat jarum berada di zona emas!</p>`));
 
-  for (let p = 1; p <= pinCount; p++) {
-    const optLabels = ['🔧 Tekanan Ringan', '🔧 Tekanan Kuat'];
-    const correct = ri(0, optLabels.length - 1);
-    let solved = false;
-    while (!solved) {
-      render(box(null, `
-        <p class="storytext">Pin ${p}/${pinCount} — rasakan getaran jarum pengait di dalam gembok...</p>
-        <p class="statline">❌ Kesalahan: ${mistakes}/${maxMistakes}</p>
-      `));
-      const idx = await choose(optLabels.map((l, i) => ({ label: l, value: i })));
-      if (idx === correct) {
-        solved = true;
-        render(box(null, `<p>✅ *Klik!* Pin ${p} berhasil ditekan ke posisi yang tepat!</p>`));
-        await continueBtn(p === pinCount ? 'Lanjut ➜' : 'Lanjut ke Pin Berikutnya ➜');
-      } else {
-        mistakes += 1;
-        if (mistakes > maxMistakes) {
-          render(box(null, `<p>💥 Jepit rambutmu PATAH! Mekanisme gembok macet total sebelum sempat terbuka penuh.</p>`));
-          await continueBtn('Lanjutkan ➜');
-          return false;
-        }
-        render(box(null, `<p>❌ Jepit rambut tergelincir, tekanan pin belum pas. Kamu mencoba merasakannya lagi...</p>`));
-        await continueBtn('Coba Lagi ➜');
-      }
+    const wrap = document.createElement('div');
+    const dialWrap = elFromHtml(`<div class="lock-dial-wrap"><div class="lock-dial"><div class="lock-needle"></div><div class="lock-dial-center"></div></div></div>`);
+    const statusEl = elFromHtml(`<p class="statline" style="text-align:center;">Pin 1/${pinCount} | ❌ Kesalahan: 0/${maxMistakes}</p>`);
+    const btnWrap = elFromHtml(`<div class="tap-btn-wrap"><button class="btn primary">🔧 KUNCI!</button></div>`);
+    wrap.appendChild(dialWrap); wrap.appendChild(statusEl); wrap.appendChild(btnWrap);
+    appendEl(wrap);
+
+    const dialEl = dialWrap.querySelector('.lock-dial');
+    const needleEl = dialWrap.querySelector('.lock-needle');
+    const btn = btnWrap.querySelector('button');
+    let angle = 0, raf = null, zoneStart = 0, zoneWidth = 74;
+
+    function newZone() {
+      zoneWidth = 74;
+      zoneStart = ri(0, 360 - zoneWidth);
+      dialEl.style.background = `conic-gradient(var(--bg-3) 0deg ${zoneStart}deg, rgba(224,182,76,0.4) ${zoneStart}deg ${zoneStart + zoneWidth}deg, var(--bg-3) ${zoneStart + zoneWidth}deg 360deg)`;
     }
-  }
-  render(box(null, `<p class="win-title">🔓 GEMBOK TERBUKA! Peti berhasil dibongkar sepenuhnya!</p>`));
-  await continueBtn('Buka Peti ➜');
-  return true;
+    function tick() {
+      angle = (angle + 4) % 360;
+      needleEl.style.transform = `rotate(${angle}deg)`;
+      raf = requestAnimationFrame(tick);
+    }
+    function startPin() {
+      newZone();
+      angle = ri(0, 359);
+      statusEl.textContent = `Pin ${pin + 1}/${pinCount} | ❌ Kesalahan: ${mistakes}/${maxMistakes}`;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(tick);
+    }
+    btn.addEventListener('click', () => {
+      const a = angle % 360;
+      const hit = a >= zoneStart && a <= zoneStart + zoneWidth;
+      if (hit) {
+        pin++;
+        if (pin >= pinCount) { cancelAnimationFrame(raf); btn.disabled = true; puzzleEndBtn(wrap, statusEl, true, '🔓 GEMBOK TERBUKA! Peti berhasil dibongkar sepenuhnya!', resolve); return; }
+        statusEl.textContent = `✅ *Klik!* Pin ${pin} tepat! Bersiap untuk pin ${pin + 1}/${pinCount}...`;
+        setTimeout(startPin, 500);
+      } else {
+        mistakes++;
+        if (mistakes > maxMistakes) { cancelAnimationFrame(raf); btn.disabled = true; puzzleEndBtn(wrap, statusEl, false, '💥 Jepit rambutmu PATAH! Mekanisme gembok macet total.', resolve); return; }
+        statusEl.textContent = `❌ Meleset dari zona emas! (${mistakes}/${maxMistakes}) — coba lagi...`;
+      }
+    });
+    startPin();
+  });
 }
 
-/* --- Variasi 2: Ingatan Simbol (hafalkan urutan lalu kenali tiap simbol dari beberapa pilihan) --- */
+/* --- Variasi 2: Simon Rune — pola cahaya berkedip otomatis, ketuk ulang pad sesuai urutan --- */
 async function puzzleMemorySequence(player, difficulty, chestLabel) {
-  const symbolPool = ['🌟','🌙','🔥','💧','🍃','⚡','❄️','🌸','🗝️','💀'];
-  const dexBonus = Math.floor((player.DEX || 0) / 10);
-  const len = Math.max(3, Math.min(difficulty, 4));
-  const pool = [...symbolPool];
-  const sequence = [];
-  for (let i = 0; i < len; i++) {
-    const idx = ri(0, pool.length - 1);
-    sequence.push(pool[idx]);
-    pool.splice(idx, 1);
-  }
+  return await new Promise(resolve => {
+    const dexBonus = Math.floor((player.DEX || 0) / 10);
+    const len = Math.max(3, Math.min(difficulty + 1, 5));
+    const padSyms = ['🔥', '💧', '🌪️', '⚡'];
+    const sequence = [];
+    for (let i = 0; i < len; i++) sequence.push(ri(0, 3));
+    const maxMistakes = 1 + dexBonus;
+    let mistakes = 0, playerIdx = 0, accepting = false;
 
-  render(box(`🧿 ${chestLabel}`, `
-    <p class="storytext">Ukiran simbol kuno bercahaya sesaat di permukaan peti. Hafalkan urutannya sebelum cahayanya memudar!</p>
-    <p class="statline" style="font-size:1.3rem;text-align:center;letter-spacing:10px;">${sequence.join(' ')}</p>
-  `));
-  await continueBtn('Aku Sudah Menghafalnya ➜');
+    render(box(`🧿 ${chestLabel}`, `<p class="storytext">Empat rune bercahaya akan berkedip membentuk sebuah pola. Perhatikan baik-baik, lalu ketuk ulang rune-rune tersebut persis sesuai urutannya!</p>`));
 
-  const maxMistakes = 2 + dexBonus;
-  let mistakes = 0;
-  for (let step = 0; step < sequence.length; step++) {
-    const distractors = [];
-    while (distractors.length < 2) {
-      const cand = choiceArr(symbolPool);
-      if (cand !== sequence[step] && !distractors.includes(cand)) distractors.push(cand);
+    const wrap = document.createElement('div');
+    const gridEl = elFromHtml(`<div class="simon-pad-grid"></div>`);
+    const pads = padSyms.map((s, i) => {
+      const pad = elFromHtml(`<div class="simon-pad" data-pad="${i}">${s}</div>`);
+      gridEl.appendChild(pad);
+      return pad;
+    });
+    const statusEl = elFromHtml(`<p class="statline" style="text-align:center;">Perhatikan urutannya...</p>`);
+    wrap.appendChild(gridEl); wrap.appendChild(statusEl);
+    appendEl(wrap);
+
+    function flashPad(i, dur) {
+      return new Promise(res => {
+        pads[i].classList.add('active');
+        setTimeout(() => { pads[i].classList.remove('active'); setTimeout(res, 180); }, dur);
+      });
     }
-    const opts = [sequence[step], ...distractors];
-    for (let i = opts.length - 1; i > 0; i--) { const j = ri(0, i); const tmp = opts[i]; opts[i] = opts[j]; opts[j] = tmp; }
-
-    let solved = false;
-    while (!solved) {
-      render(box(null, `
-        <p class="storytext">Simbol ke-${step + 1} dari ${sequence.length} — mana yang tadi muncul di urutan ini?</p>
-        <p class="statline">❌ Kesalahan: ${mistakes}/${maxMistakes}</p>
-      `));
-      const picked = await choose(opts.map(s => ({ label: s, value: s })));
-      if (picked === sequence[step]) {
-        solved = true;
-      } else {
-        mistakes += 1;
-        if (mistakes > maxMistakes) {
-          render(box(null, `<p>💥 Ingatanmu buyar! Simbol yang salah membuat mekanisme peti terkunci makin rapat.</p>`));
-          await continueBtn('Lanjutkan ➜');
-          return false;
+    async function playSequence() {
+      accepting = false;
+      pads.forEach(p => p.classList.add('disabled'));
+      statusEl.textContent = 'Perhatikan urutannya...';
+      await new Promise(r => setTimeout(r, 450));
+      for (const idx of sequence) await flashPad(idx, 550);
+      statusEl.textContent = `Giliranmu! Ketuk ${sequence.length} rune sesuai urutan tadi.`;
+      pads.forEach(p => p.classList.remove('disabled'));
+      accepting = true;
+      playerIdx = 0;
+    }
+    pads.forEach((pad, i) => {
+      pad.addEventListener('click', () => {
+        if (!accepting) return;
+        pad.classList.add('active');
+        setTimeout(() => pad.classList.remove('active'), 200);
+        if (i === sequence[playerIdx]) {
+          playerIdx++;
+          if (playerIdx >= sequence.length) { accepting = false; puzzleEndBtn(wrap, statusEl, true, '🔓 Urutan sempurna! Rune-rune bercahaya lalu peti pun terbuka!', resolve); }
+        } else {
+          mistakes++;
+          if (mistakes > maxMistakes) { accepting = false; puzzleEndBtn(wrap, statusEl, false, '💥 Urutan salah! Cahaya rune padam, mekanisme peti terkunci makin rapat.', resolve); }
+          else { statusEl.textContent = `❌ Salah urutan! (${mistakes}/${maxMistakes}) — memutar ulang polanya...`; setTimeout(playSequence, 900); }
         }
-        render(box(null, `<p>❌ Bukan simbol itu. Coba ingat lagi...</p>`));
-        await continueBtn('Coba Lagi ➜');
-      }
-    }
-  }
-  render(box(null, `<p class="win-title">🔓 Semua simbol teringat sempurna! Peti pun terbuka!</p>`));
-  await continueBtn('Lanjutkan ➜');
-  return true;
+      });
+    });
+    playSequence();
+  });
 }
 
-/* --- Variasi 3: Ritme Ketukan (hafalkan pola dari 3 jenis ketukan, lalu ulangi) --- */
+/* --- Variasi 3: Lintasan Ketukan Ritme — marker bolak-balik, TAP tepat saat masuk zona emas --- */
 async function puzzleRhythmSequence(player, difficulty, chestLabel) {
-  const beatPool = ['🥁 Ketuk', '🔔 Denting', '🎶 Petik'];
-  const dexBonus = Math.floor((player.DEX || 0) / 10);
-  const len = Math.max(3, Math.min(difficulty, 4));
-  const sequence = [];
-  for (let i = 0; i < len; i++) sequence.push(ri(0, beatPool.length - 1));
+  return await new Promise(resolve => {
+    const dexBonus = Math.floor((player.DEX || 0) / 10);
+    const totalBeats = Math.max(3, Math.min(difficulty, 4));
+    const maxMistakes = 2 + dexBonus;
+    let beat = 0, mistakes = 0;
 
-  render(box(`🥁 ${chestLabel}`, `
-    <p class="storytext">Peti ini dijaga mantra ritme kuno. Perhatikan pola ketukan berikut baik-baik, lalu ulangi persis sama!</p>
-    <p class="statline" style="font-size:1.1rem;text-align:center;">${sequence.map(i => beatPool[i]).join('  ➜  ')}</p>
-  `));
-  await continueBtn('Aku Sudah Menghafal Polanya ➜');
+    render(box(`🥁 ${chestLabel}`, `<p class="storytext">Peti ini dijaga mantra ritme kuno. Penanda akan bergerak bolak-balik di sepanjang jalur — ketuk TAP tepat saat penanda berada di zona bercahaya!</p>`));
 
-  const maxMistakes = 2 + dexBonus;
-  let mistakes = 0;
-  for (let step = 0; step < sequence.length; step++) {
-    let solved = false;
-    while (!solved) {
-      render(box(null, `
-        <p class="storytext">Ketukan ke-${step + 1} dari ${sequence.length}...</p>
-        <p class="statline">❌ Kesalahan: ${mistakes}/${maxMistakes}</p>
-      `));
-      const idx = await choose(beatPool.map((b, i) => ({ label: b, value: i })));
-      if (idx === sequence[step]) {
-        solved = true;
+    const wrap = document.createElement('div');
+    const trackEl = elFromHtml(`<div class="tap-track"><div class="tap-zone"></div><div class="tap-marker"></div></div>`);
+    const statusEl = elFromHtml(`<p class="statline" style="text-align:center;">Ketukan 1/${totalBeats} | ❌ Kesalahan: 0/${maxMistakes}</p>`);
+    const btnWrap = elFromHtml(`<div class="tap-btn-wrap"><button class="btn primary">🥁 TAP!</button></div>`);
+    wrap.appendChild(trackEl); wrap.appendChild(statusEl); wrap.appendChild(btnWrap);
+    appendEl(wrap);
+
+    const zoneEl = trackEl.querySelector('.tap-zone');
+    const markerEl = trackEl.querySelector('.tap-marker');
+    const tapBtn = btnWrap.querySelector('button');
+    let pos = 0, dir = 1, raf = null, zoneStart = 0, zoneWidth = 26;
+
+    function newZone() {
+      zoneWidth = 26;
+      zoneStart = ri(5, 100 - zoneWidth - 5);
+      zoneEl.style.left = zoneStart + '%';
+      zoneEl.style.width = zoneWidth + '%';
+    }
+    function tick() {
+      pos += dir * 1.15;
+      if (pos >= 96) { pos = 96; dir = -1; }
+      if (pos <= 0) { pos = 0; dir = 1; }
+      markerEl.style.left = pos + '%';
+      raf = requestAnimationFrame(tick);
+    }
+    function startBeat() {
+      newZone();
+      pos = 0; dir = 1;
+      statusEl.textContent = `Ketukan ${beat + 1}/${totalBeats} | ❌ Kesalahan: ${mistakes}/${maxMistakes}`;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(tick);
+    }
+    tapBtn.addEventListener('click', () => {
+      const hit = pos >= zoneStart && pos <= zoneStart + zoneWidth;
+      if (hit) {
+        beat++;
+        if (beat >= totalBeats) { cancelAnimationFrame(raf); tapBtn.disabled = true; puzzleEndBtn(wrap, statusEl, true, '🔓 Ritme sempurna! Mantra penjaga peti runtuh, peti pun terbuka!', resolve); return; }
+        statusEl.textContent = `✅ Tepat! Bersiap untuk ketukan ${beat + 1}/${totalBeats}...`;
+        setTimeout(startBeat, 500);
       } else {
-        mistakes += 1;
-        if (mistakes > maxMistakes) {
-          render(box(null, `<p>💥 Pola ritme kacau! Mantra penjaga peti gagal ditembus sepenuhnya.</p>`));
-          await continueBtn('Lanjutkan ➜');
-          return false;
-        }
-        render(box(null, `<p>❌ Ketukan meleset. Coba ingat lagi urutannya...</p>`));
-        await continueBtn('Coba Lagi ➜');
+        mistakes++;
+        if (mistakes > maxMistakes) { cancelAnimationFrame(raf); tapBtn.disabled = true; puzzleEndBtn(wrap, statusEl, false, '💥 Ketukanmu meleset terlalu jauh! Mantra penjaga peti gagal ditembus.', resolve); return; }
+        statusEl.textContent = `❌ Meleset! (${mistakes}/${maxMistakes}) — coba lagi...`;
+      }
+    });
+    startBeat();
+  });
+}
+
+/* --- Variasi 4: Papan Teka-Teki XO — klik langsung sel, menang ATAU seri = berhasil --- */
+async function puzzleTicTacToe(player, difficulty, chestLabel) {
+  return await new Promise(resolve => {
+    const board = new Array(9).fill(null);
+    const lines = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+    function winnerOf(b) { for (const [a, c, d] of lines) { if (b[a] && b[a] === b[c] && b[a] === b[d]) return b[a]; } return null; }
+
+    render(box(`❌⭕ ${chestLabel}`, `<p class="storytext">Penjaga peti menantangmu bermain Teka-Teki XO. Ketuk salah satu kotak untuk mulai — menang ATAU seri sudah cukup untuk membuka gemboknya!</p>`));
+
+    const wrap = document.createElement('div');
+    const boardEl = elFromHtml(`<div class="ttt-board"></div>`);
+    const statusEl = elFromHtml(`<p class="statline" style="text-align:center;">Giliranmu (❌)</p>`);
+    const cells = [];
+    for (let i = 0; i < 9; i++) {
+      const cell = elFromHtml(`<div class="ttt-cell" data-i="${i}"></div>`);
+      cell.addEventListener('click', () => onCellClick(i));
+      boardEl.appendChild(cell);
+      cells.push(cell);
+    }
+    wrap.appendChild(boardEl); wrap.appendChild(statusEl);
+    appendEl(wrap);
+
+    function paint() {
+      board.forEach((v, i) => {
+        cells[i].textContent = v === 'X' ? '❌' : v === 'O' ? '⭕' : '';
+        cells[i].className = 'ttt-cell' + (v ? ' filled' : '') + (v === 'X' ? ' x' : '') + (v === 'O' ? ' o' : '');
+      });
+    }
+    function onCellClick(i) {
+      if (board[i]) return;
+      board[i] = 'X'; paint();
+      let w = winnerOf(board);
+      if (w === 'X') { cells.forEach(c => c.style.pointerEvents = 'none'); puzzleEndBtn(wrap, statusEl, true, '🔓 Kamu menang! Penjaga peti mengakui kehebatanmu, gembok pun terbuka!', resolve); return; }
+      if (!board.includes(null)) { cells.forEach(c => c.style.pointerEvents = 'none'); puzzleEndBtn(wrap, statusEl, true, '🔓 Hasil seri! Penjaga peti tetap membukakan gemboknya untukmu.', resolve); return; }
+      const aiEmpties = board.map((v, idx) => v ? null : idx).filter(v => v !== null);
+      const aiIdx = choiceArr(aiEmpties);
+      board[aiIdx] = 'O'; paint();
+      w = winnerOf(board);
+      if (w === 'O') { cells.forEach(c => c.style.pointerEvents = 'none'); puzzleEndBtn(wrap, statusEl, false, '💥 Penjaga peti menang telak. Gemboknya tetap terkunci rapat.', resolve); return; }
+      if (!board.includes(null)) { cells.forEach(c => c.style.pointerEvents = 'none'); puzzleEndBtn(wrap, statusEl, true, '🔓 Hasil seri! Penjaga peti tetap membukakan gemboknya untukmu.', resolve); return; }
+    }
+    paint();
+  });
+}
+
+/* --- Variasi 5: Kartu Rune Terbalik — memory/concentration klasik, klik dua kartu untuk mencari pasangan --- */
+async function puzzleRuneMatch(player, difficulty, chestLabel) {
+  return await new Promise(resolve => {
+    const pairCount = Math.max(3, Math.min(difficulty + 1, 6));
+    const symbolPool = ['🔥', '💧', '🌪️', '⚡', '🌑', '✨', '🍀', '💎', '🦴', '👁️'];
+    const chosenSyms = [];
+    while (chosenSyms.length < pairCount) {
+      const s = choiceArr(symbolPool);
+      if (!chosenSyms.includes(s)) chosenSyms.push(s);
+    }
+    const symbols = [];
+    chosenSyms.forEach(s => { symbols.push(s); symbols.push(s); });
+    for (let i = symbols.length - 1; i > 0; i--) { const j = ri(0, i); const tmp = symbols[i]; symbols[i] = symbols[j]; symbols[j] = tmp; }
+
+    const dexBonus = Math.floor((player.DEX || 0) / 10);
+    let attemptsLeft = pairCount * 3 + 2 + dexBonus;
+    let matchedCount = 0, lock = false, firstIdx = null;
+
+    render(box(`🧠 ${chestLabel}`, `<p class="storytext">Papan berisi ${symbols.length} keping rune tertutup. Ketuk dua keping untuk membalik & mencari pasangannya!</p>`));
+
+    const wrap = document.createElement('div');
+    const gridEl = elFromHtml(`<div class="card-grid"></div>`);
+    const statusEl = elFromHtml(`<p class="statline" style="text-align:center;">🔁 Sisa Kesempatan: ${attemptsLeft} | ✅ Pasangan: 0/${pairCount}</p>`);
+    const cards = symbols.map((s, i) => {
+      const card = elFromHtml(`<div class="flip-card" data-i="${i}"><div class="flip-card-inner"><div class="flip-card-face flip-card-back">❓</div><div class="flip-card-face flip-card-front">${s}</div></div></div>`);
+      card.addEventListener('click', () => onCardClick(i));
+      gridEl.appendChild(card);
+      return card;
+    });
+    wrap.appendChild(gridEl); wrap.appendChild(statusEl);
+    appendEl(wrap);
+
+    function updateStatus() { statusEl.textContent = `🔁 Sisa Kesempatan: ${Math.max(0, attemptsLeft)} | ✅ Pasangan: ${matchedCount}/${pairCount}`; }
+
+    function onCardClick(i) {
+      if (lock || cards[i].classList.contains('flipped') || cards[i].classList.contains('matched')) return;
+      cards[i].classList.add('flipped');
+      if (firstIdx === null) { firstIdx = i; return; }
+      const secondIdx = i;
+      lock = true;
+      attemptsLeft--;
+      if (symbols[firstIdx] === symbols[secondIdx]) {
+        cards[firstIdx].classList.add('matched');
+        cards[secondIdx].classList.add('matched');
+        matchedCount++;
+        firstIdx = null; lock = false;
+        updateStatus();
+        if (matchedCount >= pairCount) { cards.forEach(c => c.style.pointerEvents = 'none'); puzzleEndBtn(wrap, statusEl, true, '🔓 Semua pasangan rune ditemukan! Mekanisme peti terbuka!', resolve); }
+        else if (attemptsLeft <= 0) { cards.forEach(c => c.style.pointerEvents = 'none'); puzzleEndBtn(wrap, statusEl, false, '💥 Kesempatan habis sebelum semua rune cocok. Peti tetap terkunci sebagian.', resolve); }
+      } else {
+        updateStatus();
+        setTimeout(() => {
+          cards[firstIdx].classList.remove('flipped');
+          cards[secondIdx].classList.remove('flipped');
+          firstIdx = null; lock = false;
+          if (attemptsLeft <= 0) { cards.forEach(c => c.style.pointerEvents = 'none'); puzzleEndBtn(wrap, statusEl, false, '💥 Kesempatan habis sebelum semua rune cocok. Peti tetap terkunci sebagian.', resolve); }
+        }, 700);
       }
     }
-  }
-  render(box(null, `<p class="win-title">🔓 Pola ritme sempurna! Mantra penjaga peti runtuh, peti pun terbuka!</p>`));
-  await continueBtn('Lanjutkan ➜');
-  return true;
+  });
 }
 
-/* --- Variasi 4: Teka-Teki XO (menang ATAU seri melawan penjaga peti = berhasil) --- */
-async function puzzleTicTacToe(player, difficulty, chestLabel) {
-  const board = new Array(9).fill(null);
-  const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-  function winnerOf(b) {
-    for (const [a, c, d] of lines) { if (b[a] && b[a] === b[c] && b[a] === b[d]) return b[a]; }
-    return null;
-  }
-  function boardHtml() {
-    const sym = c => c === 'X' ? '❌' : c === 'O' ? '⭕' : '➖';
-    const rows = [];
-    for (let r = 0; r < 3; r++) rows.push(board.slice(r * 3, r * 3 + 3).map(sym).join('  '));
-    return `<pre style="text-align:center;font-size:1.6rem;line-height:2;margin:10px 0;">${rows.join('\n')}</pre>`;
-  }
-
-  render(box(`❌⭕ ${chestLabel}`, `
-    <p class="storytext">Penjaga peti menantangmu bermain Teka-Teki XO. Menang ATAU seri sudah cukup untuk membuka gemboknya!</p>
-  `));
-  await continueBtn('Mulai Bermain ➜');
-
-  while (true) {
-    render(box(null, boardHtml() + `<p class="statline" style="text-align:center;">Giliranmu (❌)</p>`));
-    const empties = board.map((v, i) => v ? null : i).filter(v => v !== null);
-    const idx = await choose(empties.map(i => ({ label: `Kotak ${i + 1}`, value: i })));
-    board[idx] = 'X';
-    let w = winnerOf(board);
-    if (w === 'X') {
-      render(box(null, boardHtml() + `<p class="win-title">🔓 Kamu menang! Penjaga peti mengakui kehebatanmu, gembok pun terbuka!</p>`));
-      await continueBtn('Lanjutkan ➜');
-      return true;
-    }
-    if (!board.includes(null)) {
-      render(box(null, boardHtml() + `<p class="win-title">🔓 Hasil seri! Penjaga peti tetap membukakan gemboknya untukmu.</p>`));
-      await continueBtn('Lanjutkan ➜');
-      return true;
-    }
-    const aiEmpties = board.map((v, i) => v ? null : i).filter(v => v !== null);
-    const aiIdx = choiceArr(aiEmpties);
-    board[aiIdx] = 'O';
-    w = winnerOf(board);
-    if (w === 'O') {
-      render(box(null, boardHtml() + `<p>💥 Penjaga peti menang telak. Gemboknya tetap terkunci rapat.</p>`));
-      await continueBtn('Lanjutkan ➜');
-      return false;
-    }
-    if (!board.includes(null)) {
-      render(box(null, boardHtml() + `<p class="win-title">🔓 Hasil seri! Penjaga peti tetap membukakan gemboknya untukmu.</p>`));
-      await continueBtn('Lanjutkan ➜');
-      return true;
-    }
-  }
-}
-
-/* --- Variasi 5: Cocok Pasangan Rune (memory/concentration klasik, keping tertutup dibalik berpasangan) --- */
-async function puzzleRuneMatch(player, difficulty, chestLabel) {
-  const pairCount = Math.max(2, Math.min(difficulty - 1, 3));
-  const symbolPool = ['🔥','💧','🌪️','⚡','🌑','✨','🍀','💎','🦴','👁️'];
-  const chosenSyms = [];
-  while (chosenSyms.length < pairCount) {
-    const s = choiceArr(symbolPool);
-    if (!chosenSyms.includes(s)) chosenSyms.push(s);
-  }
-  const symbols = [];
-  chosenSyms.forEach(s => { symbols.push(s); symbols.push(s); });
-  for (let i = symbols.length - 1; i > 0; i--) { const j = ri(0, i); const tmp = symbols[i]; symbols[i] = symbols[j]; symbols[j] = tmp; }
-
-  const revealed = new Array(symbols.length).fill(false);
-  const matched = new Array(symbols.length).fill(false);
-  const dexBonus = Math.floor((player.DEX || 0) / 10);
-  let attemptsLeft = pairCount * 3 + 2 + dexBonus;
-
-  render(box(`🧠 ${chestLabel}`, `
-    <p class="storytext">Sebuah papan berisi ${symbols.length} keping rune tertutup tersembul dari peti. Temukan semua pasangan rune yang cocok sebelum kesempatanmu habis!</p>
-    <p class="statline">🔁 Kesempatan Membalik: ${attemptsLeft}</p>
-  `));
-  await continueBtn('Mulai Mengingat ➜');
-
-  function boardHtml() {
-    return symbols.map((s, i) => (matched[i] || revealed[i]) ? s : '❓').join(' ');
-  }
-
-  while (matched.filter(Boolean).length < symbols.length && attemptsLeft > 0) {
-    render(box(null, `
-      <p class="storytext" style="font-size:1.5rem;letter-spacing:6px;text-align:center;">${boardHtml()}</p>
-      <p class="statline">🔁 Sisa Kesempatan: ${attemptsLeft} | ✅ Pasangan Ditemukan: ${matched.filter(Boolean).length / 2}/${pairCount}</p>
-    `));
-    const opts1 = symbols.map((s, i) => ({ label: matched[i] ? `✔️ ${i + 1}` : `❓ Keping ${i + 1}`, value: i, disabled: matched[i] }));
-    const first = await choose(opts1);
-    revealed[first] = true;
-    render(box(null, `
-      <p class="storytext" style="font-size:1.5rem;letter-spacing:6px;text-align:center;">${boardHtml()}</p>
-      <p class="statline">Keping ${first + 1} = ${symbols[first]}. Pilih keping kedua!</p>
-    `));
-    const opts2 = symbols.map((s, i) => ({ label: (matched[i] || i === first) ? (matched[i] ? `✔️ ${i + 1}` : `(${i + 1})`) : `❓ Keping ${i + 1}`, value: i, disabled: matched[i] || i === first }));
-    const second = await choose(opts2);
-    revealed[second] = true;
-    attemptsLeft -= 1;
-    if (symbols[first] === symbols[second]) {
-      matched[first] = true; matched[second] = true;
-      render(box(null, `<p>✅ Cocok! ${symbols[first]} bertemu pasangannya!</p>`));
-    } else {
-      revealed[first] = false; revealed[second] = false;
-      render(box(null, `<p>❌ Tidak cocok. ${symbols[first]} dan ${symbols[second]} kembali tertutup...</p>`));
-    }
-    await continueBtn('Lanjutkan ➜');
-  }
-
-  const success = matched.filter(Boolean).length >= symbols.length;
-  if (success) {
-    render(box(null, `<p class="win-title">🔓 Semua pasangan rune ditemukan! Mekanisme peti terbuka!</p>`));
-  } else {
-    render(box(null, `<p>💥 Kesempatan habis sebelum semua rune cocok. Peti tetap terkunci sebagian.</p>`));
-  }
-  await continueBtn('Lanjutkan ➜');
-  return success;
-}
-
-/* ============================================================
-   PETI RAMPASAN BOSS
-   Setiap boss (mini-boss maupun boss zona) yang tumbang selalu
-   meninggalkan peti besi berlapis rune. Gemboknya lebih rumit
-   (lebih banyak pin) daripada peti biasa di koridor, tapi
-   hadiahnya juga jauh lebih besar: gold ekstra, material bonus,
-   potion, bahkan peluang tambahan item legendaris.
-   ============================================================ */
 async function handleBossChest(player, floor, enemy) {
   const zone = getZoneInfo(floor);
   const zId = zone.id;
