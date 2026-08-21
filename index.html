@@ -1158,6 +1158,103 @@ body::before{ animation: eldoriaVignettePulse 7s ease-in-out infinite; }
 .mg-guard-lane.disabled{pointer-events:none;}
 </style>
 
+
+<style id="eldoria-mobile-performance">
+/* Mobile Performance Mode: mempertahankan gameplay, mengurangi beban render */
+@media (max-width: 700px), (pointer: coarse) {
+  html, body {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Kurangi repaint akibat animasi visual yang tidak penting */
+  .mg-needle, .mg-zone-good, .mg-zone-perfect,
+  .mg-rune-pad, .mg-act-btn-wrap,
+  .mg-track, .mg-bullet, .mg-soul,
+  .mg-target, .mg-ring, .mg-memory-arrow {
+    will-change: auto !important;
+  }
+
+  /* Animasi kosmetik dipersingkat */
+  .mg-rune-pad,
+  .mg-target,
+  .mg-ring,
+  .mg-bullet,
+  .mg-soul {
+    animation-duration: 0.12s !important;
+    transition-duration: 0.08s !important;
+  }
+
+  /* Jangan jalankan efek hover berat di layar sentuh */
+  * {
+    touch-action: manipulation;
+  }
+
+  /* Kurangi bayangan/blur yang mahal */
+  .box, .card, .panel, .mg-wrap, .mg-track {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* Pengguna yang memang meminta motion rendah mendapat mode paling ringan */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+</style>
+
+<script id="eldoria-mobile-performance-js">
+(function () {
+  const coarse = window.matchMedia &&
+    window.matchMedia('(pointer: coarse)').matches;
+  const narrow = window.matchMedia &&
+    window.matchMedia('(max-width: 700px)').matches;
+
+  window.eldoriaMobileMode = !!(coarse || narrow);
+
+  // Helper untuk mekanik baru: gunakan requestAnimationFrame hanya ketika
+  // benar-benar diperlukan, dan throttle update visual pada perangkat mobile.
+  window.eldoriaPerf = {
+    mobile: window.eldoriaMobileMode,
+    visualFPS: window.eldoriaMobileMode ? 30 : 60,
+    cleanup: function (handlers) {
+      if (!Array.isArray(handlers)) return;
+      handlers.forEach(function (h) {
+        try {
+          if (h && h.target && h.type && h.fn) {
+            h.target.removeEventListener(h.type, h.fn);
+          }
+        } catch (_) {}
+      });
+      handlers.length = 0;
+    },
+    rafThrottle: function (fn) {
+      let pending = false;
+      let last = 0;
+      const interval = window.eldoriaMobileMode ? 33 : 16;
+      return function () {
+        const args = arguments;
+        if (pending) return;
+        const now = performance.now();
+        const delay = Math.max(0, interval - (now - last));
+        pending = true;
+        setTimeout(function () {
+          requestAnimationFrame(function () {
+            pending = false;
+            last = performance.now();
+            fn.apply(null, args);
+          });
+        }, delay);
+      };
+    }
+  };
+})();
+</script>
+
 </head>
 <body>
 <div id="app">
@@ -4360,6 +4457,25 @@ bootLoop();
       el.style.width = mpPct + '%';
     });
   };
+})();
+</script>
+
+
+<script id="eldoria-mobile-class">
+(function () {
+  function apply() {
+    if (!document.body) return;
+    if (window.eldoriaMobileMode) {
+      document.body.classList.add('eldoria-mobile');
+    } else {
+      document.body.classList.remove('eldoria-mobile');
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', apply, {once:true});
+  } else {
+    apply();
+  }
 })();
 </script>
 
